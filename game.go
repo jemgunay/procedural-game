@@ -3,6 +3,7 @@ package game
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
@@ -22,22 +23,33 @@ func Run() {
 		fmt.Printf("failed create new window: %s", err)
 		return
 	}
+	win.SetSmooth(true)
 
 	if err := file.LoadAllAssets(); err != nil {
 		fmt.Printf("failed to process assets: %s", err)
 		return
 	}
 
-	sprite, err := file.ImageToSprite("road_nesw.png")
+	sprite, err := file.CreateSprite("road_nesw.png")
 	if err != nil {
-
+		fmt.Printf("failed to create sprite: %s", err)
+		return
 	}
 
-	win.Clear(colornames.Greenyellow)
+	angle := 0.0
 
-	sprite.Draw(win, pixel.IM.Moved(win.Bounds().Center()))
-
+	last := time.Now()
 	for !win.Closed() {
+		dt := time.Since(last).Seconds()
+		last = time.Now()
+
+		win.Clear(colornames.Greenyellow)
+
+		angle += 3 * dt
+
+		mat := pixel.IM.Rotated(pixel.ZV, angle).Moved(win.Bounds().Center())
+		sprite.Draw(win, mat)
+
 		win.Update()
 	}
 }

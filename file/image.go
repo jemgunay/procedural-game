@@ -48,8 +48,8 @@ func LoadPicture(fileName string) error {
 	return nil
 }
 
-// ImageToSprite take a pre-loaded picture from the assets store and produces a new sprite from it.
-func ImageToSprite(fileName string) (*pixel.Sprite, error) {
+// CreateSprite take a pre-loaded picture from the assets store and produces a new sprite from it.
+func CreateSprite(fileName string) (*pixel.Sprite, error) {
 	pic, ok := imageAssetsStore[fileName]
 	if !ok {
 		return nil, errors.New("image \"" + fileName + "\" was not found in the assets store")
