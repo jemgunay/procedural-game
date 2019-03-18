@@ -33,8 +33,8 @@ func Run() {
 	}
 
 	// generate world
-	tileMap := world.NewTileMap()
-	if err := tileMap.GenerateChunk(); err != nil {
+	tileGrid := world.NewTileGrid()
+	if err := tileGrid.GenerateChunk(); err != nil {
 		fmt.Printf("failed to generate world: %s", err)
 		return
 	}
@@ -50,7 +50,7 @@ func Run() {
 		last = time.Now()
 
 		// window camera
-		cam := pixel.IM.Scaled(camPos, 0.2).Moved(win.Bounds().Center().Sub(camPos))
+		cam := pixel.IM.Scaled(camPos, 0.2).Moved(camPos.Scaled(-1.0))
 		win.SetMatrix(cam)
 
 		// handle keyboard input
@@ -66,10 +66,13 @@ func Run() {
 		if win.Pressed(pixelgl.KeyUp) {
 			camPos.Y += camSpeed * dt
 		}
+		if win.Pressed(pixelgl.KeyEscape) {
+			win.SetClosed(true)
+		}
 		win.Clear(colornames.Greenyellow)
 
 		// draw tiles
-		tileMap.Draw(win)
+		tileGrid.Draw(win)
 
 		win.Update()
 	}
