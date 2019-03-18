@@ -1,3 +1,4 @@
+// Package world produces and maintains the game world.
 package world
 
 import (
@@ -27,7 +28,7 @@ type TileMap struct {
 	sync.RWMutex
 }
 
-// NewTileMap creates a new tile map.
+// NewTileMap creates and initialises a new tile map.
 func NewTileMap() *TileMap {
 	return &TileMap{
 		tiles: make(map[string]*Tile),
@@ -36,18 +37,20 @@ func NewTileMap() *TileMap {
 
 // CreateTile creates a new tile and inserts it into the tile map.
 func (m *TileMap) CreateTile(tileImageName string, x, y int) error {
-	// create new tile
+	// create sprite
 	sprite, err := file.CreateSprite(tileImageName + ".png")
 	if err != nil {
 		return err
 	}
 
+	// create new tile
 	newTile := &Tile{
 		sprite:   sprite,
 		coordPos: pixel.V(float64(x), float64(y)),
 		absPos:   pixel.IM.Moved(pixel.V(float64(x*tileSize), float64(y*tileSize))),
 	}
 
+	// insert tile into tile map
 	m.Lock()
 	m.tiles[newTile.absPos.String()] = newTile
 	m.Unlock()
@@ -71,18 +74,23 @@ func (m *TileMap) Draw(win *pixelgl.Window) {
 
 const (
 	tileSize  = 100
-	worldSize = 30
-	alpha     = 2.0
-	beta      = 2.0
-	n         = 3
-	seed      = int64(100)
+	worldSize = 50
+
+	// weight/noisiness
+	perlinAlpha = 2.0
+	// harmonic scaling/spacing
+	perlinBeta = 2.0
+	// number of iterations
+	perlinIterations = 3
+	seed             = int64(100)
 )
 
+// GenerateChunk generates a chunk of tiles.
 func (m *TileMap) GenerateChunk() error {
 	var minZ, maxZ float64
 
 	// generate perlin noise map
-	p := perlin.NewPerlinRandSource(alpha, beta, n, rand.NewSource(seed))
+	p := perlin.NewPerlinRandSource(perlinAlpha, perlinBeta, perlinIterations, rand.NewSource(seed))
 	for x := 0; x < worldSize; x++ {
 		for y := 0; y < worldSize; y++ {
 			z := p.Noise2D(float64(x)/10, float64(y)/10)
@@ -94,7 +102,7 @@ func (m *TileMap) GenerateChunk() error {
 				maxZ = z
 			}
 
-			if z > 0 {
+			if z < 0 {
 				if err := m.CreateTile("grass", x, y); err != nil {
 					return fmt.Errorf("failed to create tile: %s", err)
 				}
