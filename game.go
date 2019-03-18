@@ -8,6 +8,7 @@ import (
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/jemgunay/game/file"
+	"github.com/jemgunay/game/world"
 	"golang.org/x/image/colornames"
 )
 
@@ -25,30 +26,50 @@ func Run() {
 	}
 	win.SetSmooth(true)
 
+	// load assets
 	if err := file.LoadAllAssets(); err != nil {
 		fmt.Printf("failed to process assets: %s", err)
 		return
 	}
 
-	sprite, err := file.CreateSprite("road_nesw.png")
-	if err != nil {
-		fmt.Printf("failed to create sprite: %s", err)
+	// generate world
+	tileMap := world.NewTileMap()
+	if err := tileMap.GenerateChunk(); err != nil {
+		fmt.Printf("failed to generate world: %s", err)
 		return
 	}
 
-	angle := 0.0
-
-	last := time.Now()
+	// main loop
+	var (
+		camPos   = pixel.ZV
+		camSpeed = 1000.0
+		last     = time.Now()
+	)
 	for !win.Closed() {
 		dt := time.Since(last).Seconds()
 		last = time.Now()
 
+		// window camera
+		cam := pixel.IM.Scaled(camPos, 0.2).Moved(win.Bounds().Center().Sub(camPos))
+		win.SetMatrix(cam)
+
+		// handle keyboard input
+		if win.Pressed(pixelgl.KeyLeft) {
+			camPos.X -= camSpeed * dt
+		}
+		if win.Pressed(pixelgl.KeyRight) {
+			camPos.X += camSpeed * dt
+		}
+		if win.Pressed(pixelgl.KeyDown) {
+			camPos.Y -= camSpeed * dt
+		}
+		if win.Pressed(pixelgl.KeyUp) {
+			camPos.Y += camSpeed * dt
+		}
 		win.Clear(colornames.Greenyellow)
 
-		angle += 3 * dt
-
-		mat := pixel.IM.Rotated(pixel.ZV, angle).Moved(win.Bounds().Center())
-		sprite.Draw(win, mat)
+		// draw tiles
+		tileMap.Draw(win)
 
 		win.Update()
 	}
