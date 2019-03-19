@@ -47,12 +47,13 @@ func (g *TileGrid) CreateTile(imageFile file.ImageFile, x, y int) error {
 	}
 
 	// create new tile
+	absPos := pixel.V(float64(x*tileSize), float64(y*tileSize))
 	newTile := &Tile{
 		fileName: imageFile,
 		sprite:   sprite,
 		visible:  true,
 		gridPos:  pixel.V(float64(x), float64(y)),
-		absPos:   pixel.IM.Moved(pixel.V(float64(x*tileSize), float64(y*tileSize))),
+		absPos:   pixel.IM.Scaled(pixel.V(float64(x), float64(y)), 2.0).Moved(absPos),
 	}
 
 	// insert tile into tile grid
@@ -82,13 +83,13 @@ func (g *TileGrid) Draw(win *pixelgl.Window) {
 }
 
 const (
-	tileSize  = 100
+	tileSize  = 200
 	worldSize = 50
 
 	// weight/noisiness
 	perlinAlpha = 2.0
 	// harmonic scaling/spacing
-	perlinBeta = 2.0
+	perlinBeta = 1.0
 	// number of iterations
 	perlinIterations = 3
 	// source of perlin noise randomness
@@ -103,7 +104,7 @@ func (g *TileGrid) GenerateChunk() error {
 	p := perlin.NewPerlinRandSource(perlinAlpha, perlinBeta, perlinIterations, rand.NewSource(perlinSeed))
 	for x := 0; x < worldSize; x++ {
 		for y := 0; y < worldSize; y++ {
-			z := p.Noise2D(float64(x)/10, float64(y)/10)
+			z := p.Noise2D(float64(x)/10, float64(y)/10) + 1
 
 			if z < minZ {
 				minZ = z
@@ -112,18 +113,21 @@ func (g *TileGrid) GenerateChunk() error {
 				maxZ = z
 			}
 
-			if z < -0.45 {
-				if err := g.CreateTile(file.Water, x, y); err != nil {
-					return fmt.Errorf("failed to create tile: %s", err)
-				}
-			} else if z >= -0.45 && z < -0.1 {
-				if err := g.CreateTile(file.Grass, x, y); err != nil {
-					return fmt.Errorf("failed to create tile: %s", err)
-				}
+			var (
+				target   file.ImageFile
+				waterMax = 0.7
+				grassMin = 1.2
+			)
+			if z < waterMax {
+				target = file.Water
+			} else if z >= waterMax && z < grassMin {
+				target = file.Grass
 			} else {
-				if err := g.CreateTile(file.RoadNESW, x, y); err != nil {
-					return fmt.Errorf("failed to create tile: %s", err)
-				}
+				target = file.RoadNESW
+			}
+
+			if err := g.CreateTile(target, x, y); err != nil {
+				return fmt.Errorf("failed to create tile: %s", err)
 			}
 		}
 	}
@@ -152,7 +156,7 @@ type NeighbourFunc func(t1, t2 *Tile) bool
 // CheckNeighbours applies the specified NeighbourFunc to each of a tile's neighbours. If the NeighbourFunc evaluates to
 // true for a given neighbouring tile, the returned count is incremented.
 func (g *TileGrid) CheckNeighbours(tile *Tile, cornerNeighbours bool, checkFunc NeighbourFunc) (matchCount uint) {
-	x, y := tile.gridPos.X, tile.gridPos.Y
+	x, y := tile.gridPos.XY()
 
 	// north, east, south, west
 	neighbours := [4]*Tile{

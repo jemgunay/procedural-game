@@ -43,6 +43,7 @@ func Run() {
 	var (
 		camPos   = pixel.ZV
 		camSpeed = 1000.0
+		camScale = 2.0
 		last     = time.Now()
 	)
 	for !win.Closed() {
@@ -50,21 +51,27 @@ func Run() {
 		last = time.Now()
 
 		// window camera
-		cam := pixel.IM.Scaled(camPos, 0.2).Moved(camPos.Scaled(-1.0))
+		cam := pixel.IM.Scaled(camPos, camScale).Moved(camPos.Scaled(-1.0))
 		win.SetMatrix(cam)
 
 		// handle keyboard input
-		if win.Pressed(pixelgl.KeyLeft) {
+		if win.Pressed(pixelgl.KeyA) {
 			camPos.X -= camSpeed * dt
 		}
-		if win.Pressed(pixelgl.KeyRight) {
+		if win.Pressed(pixelgl.KeyD) {
 			camPos.X += camSpeed * dt
 		}
-		if win.Pressed(pixelgl.KeyDown) {
+		if win.Pressed(pixelgl.KeyS) {
 			camPos.Y -= camSpeed * dt
 		}
-		if win.Pressed(pixelgl.KeyUp) {
+		if win.Pressed(pixelgl.KeyW) {
 			camPos.Y += camSpeed * dt
+		}
+		if win.Pressed(pixelgl.KeyR) {
+			camScale += 0.01
+		}
+		if win.Pressed(pixelgl.KeyF) {
+			camScale -= 0.01
 		}
 		if win.Pressed(pixelgl.KeyEscape) {
 			win.SetClosed(true)
