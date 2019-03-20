@@ -47,7 +47,7 @@ func (g *TileGrid) CreateTile(imageFile file.ImageFile, x, y int) error {
 	}
 
 	// create new tile
-	absPos := pixel.V(float64(x*tileSize), float64(y*tileSize))
+	absPos := pixel.V(float64(x)*tileSize, float64(y)*tileSize)
 	newTile := &Tile{
 		fileName: imageFile,
 		sprite:   sprite,
@@ -83,7 +83,7 @@ func (g *TileGrid) Draw(win *pixelgl.Window) {
 }
 
 const (
-	tileSize  = 200
+	tileSize  = 201
 	worldSize = 50
 
 	// weight/noisiness

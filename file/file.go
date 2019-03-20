@@ -11,6 +11,7 @@ func (i ImageFile) String() string {
 
 // Image file name constants.
 const (
+	Player   ImageFile = "player.png"
 	Grass    ImageFile = "grass.png"
 	Water    ImageFile = "water.png"
 	RoadNESW ImageFile = "road_nesw.png"
@@ -27,6 +28,7 @@ const (
 )
 
 var imageFiles = map[ImageFile]bool{
+	Player:   true,
 	Grass:    true,
 	Water:    true,
 	RoadNESW: true,
