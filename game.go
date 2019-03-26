@@ -3,16 +3,20 @@ package game
 
 import (
 	"fmt"
-	"math"
 	"time"
+
+	"golang.org/x/image/colornames"
 
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
+
 	"github.com/jemgunay/game/file"
+	"github.com/jemgunay/game/player"
 	"github.com/jemgunay/game/server"
 	"github.com/jemgunay/game/world"
-	"golang.org/x/image/colornames"
 )
+
+var players map[string]*player.Player
 
 // Run is the client entry point.
 func Run() {
@@ -41,48 +45,44 @@ func Run() {
 		return
 	}
 
+	// start server
 	go func() {
 		if err := server.Start(9000); err != nil {
-			fmt.Printf("failed to start server: %s\n", err)
-			return
+			fmt.Printf("server shut down: %s\n", err)
 		}
 	}()
 
 	// create player
-	player, err := file.CreateSprite(file.Player)
+	mainPlayer, err := player.New("jemgunay")
 	if err != nil {
-		fmt.Printf("failed to create player: %s\n", err)
+		fmt.Printf("failed to create mainPlayer: %s\n", err)
 		return
 	}
 
 	var (
-		playerPos         = pixel.ZV
-		playerSpeed       = 500.0
-		playerOrientation = 0.0
-		camScale          = 1.0
-		last              = time.Now()
+		camScale = 1.0
+		last     = time.Now()
 	)
-
 	for !win.Closed() {
 		dt := time.Since(last).Seconds()
 		last = time.Now()
 
 		// window camera
-		cam := pixel.IM.Scaled(playerPos, camScale).Moved(win.Bounds().Center().Sub(playerPos))
+		cam := pixel.IM.Scaled(mainPlayer.Pos(), camScale).Moved(win.Bounds().Center().Sub(mainPlayer.Pos()))
 		win.SetMatrix(cam)
 
 		// handle keyboard input
-		if win.Pressed(pixelgl.KeyA) {
-			playerPos.X -= playerSpeed * dt
-		}
-		if win.Pressed(pixelgl.KeyD) {
-			playerPos.X += playerSpeed * dt
+		if win.Pressed(pixelgl.KeyW) {
+			mainPlayer.Up(dt)
 		}
 		if win.Pressed(pixelgl.KeyS) {
-			playerPos.Y -= playerSpeed * dt
+			mainPlayer.Down(dt)
 		}
-		if win.Pressed(pixelgl.KeyW) {
-			playerPos.Y += playerSpeed * dt
+		if win.Pressed(pixelgl.KeyA) {
+			mainPlayer.Left(dt)
+		}
+		if win.Pressed(pixelgl.KeyD) {
+			mainPlayer.Right(dt)
 		}
 		if win.Pressed(pixelgl.KeyR) {
 			camScale += 0.01
@@ -95,16 +95,17 @@ func Run() {
 		}
 		// handle mouse movement
 		if win.MousePosition() != win.MousePreviousPosition() {
-			mouse := cam.Unproject(win.MousePosition())
-			// point player at mouse
-			playerOrientation = math.Atan2(mouse.Y-playerPos.Y, mouse.X-playerPos.X)
+			// point mainPlayer at mouse
+			mousePos := cam.Unproject(win.MousePosition())
+			mainPlayer.PointTo(mousePos)
 		}
 
 		win.Clear(colornames.Greenyellow)
 
 		// draw tiles
 		tileGrid.Draw(win)
-		player.Draw(win, pixel.IM.Moved(playerPos).Rotated(playerPos, playerOrientation))
+		// draw player
+		mainPlayer.Draw(win)
 
 		win.Update()
 	}
