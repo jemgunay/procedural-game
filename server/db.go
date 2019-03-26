@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -18,6 +19,22 @@ type User struct {
 	blocked bool
 }
 
+func (u *User) Send(req Request) {
+	if u.conn == nil {
+		return
+	}
+
+	rawMsg, err := json.Marshal(req)
+	if err != nil {
+		fmt.Printf("failed to process outbound request: %s:\n%v\n", err, req)
+		return
+	}
+
+	if _, err := u.conn.Write(rawMsg); err != nil {
+		fmt.Printf("failed to write \"%s\" to %s: %s\n", string(rawMsg), u.conn.RemoteAddr(), err)
+	}
+}
+
 // UserDB is a database of users.
 type UserDB struct {
 	users map[string]User
@@ -31,40 +48,47 @@ func (d *UserDB) Get(uuid string) User {
 	return user
 }
 
-func (d *UserDB) Update(uuid string, user User) {
+func (d *UserDB) Update(user User) {
 	d.Lock()
-	d.users[uuid] = user
+	d.users[user.uuid] = user
 	d.Unlock()
 }
 
-func (d *UserDB) Broadcast(message []byte, excludeUUIDs ...string) {
-	d.Lock()
-	for _, u := range excludeUUIDs {
-		conn := d.users[u].conn
-		if _, err := conn.Write(message); err != nil {
-			fmt.Printf("failed to write \"%s\" to %s: %s", message, conn.RemoteAddr(), err)
+func (d *UserDB) Broadcast(resp Request, excludeUUIDs ...string) {
+	d.RLock()
+	for _, user := range d.users {
+		for _, id := range excludeUUIDs {
+			if user.uuid == id {
+				continue
+			}
+			user.Send(resp)
 		}
 	}
-	d.Unlock()
+	d.RUnlock()
 }
 
 func (d *UserDB) Create(username string, conn net.Conn) (User, error) {
 	// validate username
 	switch {
-	case len(username) > 5:
+	case len(username) < 6:
 		return User{}, errors.New("username must have a minimum length of 6 characters")
-	case len(username) < 13:
-		return User{}, errors.New("username must have a maximum length of 12 characters")
+	case len(username) > 12:
+		return User{}, errors.New("username length must not exceed 12 characters")
 	}
 	// TODO: ensure username only contains letters/numbers
 
+	var err error
 	d.RLock()
 	for _, user := range d.users {
 		if user.name == username {
-			return User{}, errors.New("username already taken")
+			err = errors.New("username already taken")
+			break
 		}
 	}
 	d.RUnlock()
+	if err != nil {
+		return User{}, err
+	}
 
 	// insert new user into DB
 	newUUID := uuid.NewV4().String()
@@ -79,14 +103,31 @@ func (d *UserDB) Create(username string, conn net.Conn) (User, error) {
 	return newUser, nil
 }
 
-func (d *UserDB) Connect(uuid string, conn net.Conn) error {
-	d.Lock()
-	if _, ok := d.users[uuid]; !ok {
-		return errors.New("user not found in DB")
+func (d *UserDB) Connect(uuid string, conn net.Conn) (User, error) {
+	d.RLock()
+	user, ok := d.users[uuid]
+	d.RUnlock()
+	if !ok {
+		return User{}, errors.New("user not found in DB")
 	}
-	// update connection
-	d.users[uuid].conn = conn
 
+	// check user is not already connected to prevent kicking off different client
+	if conn != nil {
+		return User{}, errors.New("user already connected")
+	}
+
+	// update connection
+	user.conn = conn
+	d.Lock()
+	d.users[uuid] = user
 	d.Unlock()
-	return nil
+	return user, nil
+}
+
+func (d *UserDB) Disconnect(user User) {
+	d.Lock()
+	// set connection to nil
+	user.conn = nil
+	d.users[user.uuid] = user
+	d.Unlock()
 }
