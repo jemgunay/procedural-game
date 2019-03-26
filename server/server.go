@@ -63,18 +63,19 @@ func Shutdown() {
 	// TODO: wg.Wait()
 }
 
-// Request represents an incoming request from a client or an outgoing request from the server.
-type Request struct {
-	Type string `json:"type"`
-	Msg  string `json:"msg,omitempty"`
+// Message represents an incoming request from a client or an outgoing request from the server.
+type Message struct {
+	Type  string `json:"type"`
+	Value string `json:"val,omitempty"`
 }
 
+// handles the processing and maintenance of a connection between the server and a single game client.
 func handleConn(conn net.Conn) {
 	defer conn.Close()
 
 	// get client address
 	addr := conn.RemoteAddr().String()
-	fmt.Println("TCP client connection established: " + addr)
+	fmt.Println("TCP client connection established on " + addr)
 
 	var (
 		user User
@@ -84,82 +85,80 @@ func handleConn(conn net.Conn) {
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
 		// unmarshal raw request
-		var req Request
-		if err = json.Unmarshal(scanner.Bytes(), &req); err != nil {
+		var msg Message
+		if err = json.Unmarshal(scanner.Bytes(), &msg); err != nil {
 			fmt.Printf("invalid request received from %s, %s:\n%s\n", addr, err, scanner.Text())
 			continue
 		}
 
 		// require a successful register/connect before allowing access to other request instruction types
-		if user.uuid == "" {
-			user = establishUser(req, conn)
+		if user.conn == nil {
+			user = establishUser(msg, conn)
 			continue
 		}
 
 		// execute operation on initialised user
-		switch req.Type {
+		switch msg.Type {
 		case "disconnect":
-			// close user connection
+			// clear user's connection reference in the user DB
 			userDB.Disconnect(user)
-			// inform client that disconnect has been acknowledged
-			user.Send(Request{
-				Type: "disconnected",
-			})
+			// destroy reference to local user
 			user = User{}
-			// broadcast user leaving message to all room users
-			userDB.Broadcast(Request{
-				Type: "disconnect",
-				Msg:  user.name + " has left the game!",
-			}, user.uuid)
 
 		case "pos":
-			fmt.Printf("new pos: %s\n", req.Msg)
+			fmt.Printf("new pos: %s\n", msg.Value)
+			// write pos msg right back to other clients
+			userDB.Broadcast(msg, user.uuid)
 
 		default:
-			fmt.Printf("unsupported request type for connected stage: %s\n", req.Type)
+			fmt.Printf("unsupported request type for connected stage: %s\n", msg.Type)
 		}
+	}
 
+	// clean up on messy connection closure
+	if user.conn != nil {
+		userDB.Disconnect(user)
 	}
 
 	// client disconnecting
-	fmt.Println("TCP client connection dropped: " + addr)
+	fmt.Println("TCP client connection disconnected on " + addr)
 }
 
 // handles registering (signing up) and reconnecting (logging in) users on an established connection, associating the
 // connection with a user in the process
-func establishUser(req Request, conn net.Conn) (user User) {
+func establishUser(msg Message, conn net.Conn) (user User) {
 	var err error
 
-	switch req.Type {
+	switch msg.Type {
 	case "register":
 		// attempt to create new user given the provided username
-		user, err = userDB.Create(req.Msg, conn)
+		user, err = userDB.Create(msg.Value, conn)
 		if err != nil {
 			err = fmt.Errorf("failed to create user: %s", err)
 			break
 		}
 
 		// respond with register success
-		user.Send(Request{
-			Type: "register_success",
-			Msg:  user.uuid,
+		user.Send(Message{
+			Type:  "register_success",
+			Value: user.uuid,
 		})
 
 	case "connect":
 		// attempt to establish connection for existing user
-		user, err = userDB.Connect(req.Msg, conn)
+		user, err = userDB.Connect(msg.Value, conn)
 		if err != nil {
 			err = fmt.Errorf("failed to connect existing user: %s", err)
 			break
 		}
 
 		// respond with connect success
-		user.Send(Request{
+		user.Send(Message{
 			Type: "connect_success",
 		})
 
 	default:
-		err = errors.New("unsupported request type for init stage: " + req.Type)
+		err = errors.New("unsupported request type for init stage: " + msg.Type)
 	}
 
 	// catch if any errors occurred
@@ -170,9 +169,9 @@ func establishUser(req Request, conn net.Conn) (user User) {
 	}
 
 	// broadcast to all players that user successfully joined
-	userDB.Broadcast(Request{
-		Type: "announcement",
-		Msg:  user.name + " has joined the game!",
+	userDB.Broadcast(Message{
+		Type:  "announcement",
+		Value: user.name + " has joined the game!",
 	}, user.uuid)
 
 	return

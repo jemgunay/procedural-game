@@ -1,8 +1,14 @@
-{"type":"connect","msg":"3589f146-7080-4796-b138-31352074374b"}
+nc localhost 9000
 
-714f4429-2c86-4b68-8e5a-16e796f11a46
+1)
+{"type":"register","val":"jemgunay"}
+{"type":"register","val":"willyG"}
 
-{"type":"register","msg":"jemgunay"}
-{"type":"register","msg":"willyG"}
+2)
+{"type":"connect","val":"c5f247cd-3f83-4b28-9e0c-6b5ac4a12db6"}
 
+3)
 {"type":"disconnect"}
+
+4)
+{"type":"pos","val":"123|321"}

@@ -19,14 +19,15 @@ type User struct {
 	blocked bool
 }
 
-func (u *User) Send(req Request) {
+// Send marshals and writes a message to a user's client.
+func (u *User) Send(msg Message) {
 	if u.conn == nil {
 		return
 	}
 
-	rawMsg, err := json.Marshal(req)
+	rawMsg, err := json.Marshal(msg)
 	if err != nil {
-		fmt.Printf("failed to process outbound request: %s:\n%v\n", err, req)
+		fmt.Printf("failed to process outbound request: %s:\n%v\n", err, msg)
 		return
 	}
 
@@ -41,6 +42,8 @@ type UserDB struct {
 	sync.RWMutex
 }
 
+// Get safely retrieves the user corresponding with the provided UUID. If the user doesn't exist, an empty User is
+// returned.
 func (d *UserDB) Get(uuid string) User {
 	d.RLock()
 	user := d.users[uuid]
@@ -48,25 +51,28 @@ func (d *UserDB) Get(uuid string) User {
 	return user
 }
 
+// Update safely updates a user by its UUID.
 func (d *UserDB) Update(user User) {
 	d.Lock()
 	d.users[user.uuid] = user
 	d.Unlock()
 }
 
-func (d *UserDB) Broadcast(resp Request, excludeUUIDs ...string) {
+// Broadcast broadcasts a message to all connected users except those in the specified list of exclusion UUIDs.
+func (d *UserDB) Broadcast(msg Message, excludeUUIDs ...string) {
 	d.RLock()
 	for _, user := range d.users {
 		for _, id := range excludeUUIDs {
 			if user.uuid == id {
 				continue
 			}
-			user.Send(resp)
+			user.Send(msg)
 		}
 	}
 	d.RUnlock()
 }
 
+// Create creates a new user in the user DB given a username and connection.
 func (d *UserDB) Create(username string, conn net.Conn) (User, error) {
 	// validate username
 	switch {
@@ -75,7 +81,7 @@ func (d *UserDB) Create(username string, conn net.Conn) (User, error) {
 	case len(username) > 12:
 		return User{}, errors.New("username length must not exceed 12 characters")
 	}
-	// TODO: ensure username only contains letters/numbers
+	// TODO: validate username to ensure it only contains letters/numbers
 
 	var err error
 	d.RLock()
@@ -103,6 +109,7 @@ func (d *UserDB) Create(username string, conn net.Conn) (User, error) {
 	return newUser, nil
 }
 
+// Connect associates an existing user in the user DB with a new connection.
 func (d *UserDB) Connect(uuid string, conn net.Conn) (User, error) {
 	d.RLock()
 	user, ok := d.users[uuid]
@@ -112,7 +119,7 @@ func (d *UserDB) Connect(uuid string, conn net.Conn) (User, error) {
 	}
 
 	// check user is not already connected to prevent kicking off different client
-	if conn != nil {
+	if user.conn != nil {
 		return User{}, errors.New("user already connected")
 	}
 
@@ -124,10 +131,23 @@ func (d *UserDB) Connect(uuid string, conn net.Conn) (User, error) {
 	return user, nil
 }
 
+// Disconnect clears the reference to a user's connection.
 func (d *UserDB) Disconnect(user User) {
+	// inform client that disconnect has been acknowledged
+	user.Send(Message{
+		Type: "disconnected",
+	})
+
+	// clear connection reference before updating DB
+	user.conn = nil
 	d.Lock()
 	// set connection to nil
-	user.conn = nil
 	d.users[user.uuid] = user
 	d.Unlock()
+
+	// broadcast user leaving message to all remaining connected users
+	d.Broadcast(Message{
+		Type:  "disconnect",
+		Value: user.name + " has left the game!",
+	}, user.uuid)
 }
