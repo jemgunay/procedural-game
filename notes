@@ -12,3 +12,4 @@ nc localhost 9000
 
 4)
 {"type":"pos","val":"123|321"}
+

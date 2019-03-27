@@ -13,10 +13,17 @@ import (
 
 // StartClient is the main client entry point.
 func StartClient() {
+	// load assets
+	if err := file.LoadAllAssets(); err != nil {
+		fmt.Printf("failed to process assets: %s\n", err)
+		return
+	}
+
 	cfg := pixelgl.WindowConfig{
 		Title:  "Test Game",
 		Bounds: pixel.R(0, 0, 1024, 768),
 		VSync:  true,
+		Resizable: true,
 	}
 
 	win, err := pixelgl.NewWindow(cfg)
@@ -26,17 +33,9 @@ func StartClient() {
 	}
 	//win.SetSmooth(true)
 
-	// load assets
-	if err = file.LoadAllAssets(); err != nil {
-		fmt.Printf("failed to process assets: %s\n", err)
-		return
-	}
-
 	// start the scene
 	scene.Start(win)
 }
 
 // StartServerOnly is the server only instance entry point.
-func StartServerOnly() {
-
-}
+func StartServerOnly() {}

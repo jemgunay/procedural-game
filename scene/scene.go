@@ -60,12 +60,25 @@ func Pop() {
 	}
 }
 
+// Count returns the number of layers in the layer stack.
+func Count() int {
+	return len(layerStack)
+}
+
 // MainMenu is the main menu layer which is first displayed upon game startup.
-type MainMenu struct{}
+type MainMenu struct{
+	ui *UIContainer
+}
 
 // NewMainMenu creates and initialises a new main menu layer.
 func NewMainMenu() *MainMenu {
-	return &MainMenu{}
+	ui := NewUIContainer(win.Bounds())
+	ui.AddButton(NewButton())
+	ui.AddButton(NewButton())
+	ui.AddButton(NewButton())
+	return &MainMenu{
+		ui: ui,
+	}
 }
 
 // Update updates the main menu layer logic.
@@ -83,10 +96,15 @@ func (m *MainMenu) Update(dt float64) {
 		}
 		Push(gameLayer)
 	}
+	if win.Pressed(pixelgl.KeyEscape) {
+		win.SetClosed(true)
+	}
 }
 
 // Draw draws the main menu layer to the window.
-func (m *MainMenu) Draw() {}
+func (m *MainMenu) Draw() {
+	m.ui.Draw()
+}
 
 // Game is the main interactive game functionality layer.
 type Game struct {

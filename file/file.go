@@ -1,5 +1,56 @@
-// Package file manages the processing of files.
 package file
+
+import (
+	"errors"
+	"fmt"
+	"image"
+	// import png for its side-effects
+	_ "image/png"
+	"os"
+
+	"github.com/faiface/pixel"
+)
+
+var (
+	assetsDir        = "../../assets/img/"
+	imageAssetsStore = make(map[ImageFile]*pixel.PictureData)
+)
+
+// LoadAllAssets loads all assets into their appropriate assets store ready to be consumed.
+func LoadAllAssets() error {
+	// load all image assets
+	for fileName := range imageFiles {
+		if err := LoadPicture(fileName); err != nil {
+			return fmt.Errorf("failed to load image asset: %s", err)
+		}
+	}
+
+	return nil
+}
+
+// LoadPicture loads an image file from disk and stores it in the picture assets store.
+func LoadPicture(fileName ImageFile) error {
+	file, err := os.Open(assetsDir + fileName.String())
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	img, _, err := image.Decode(file)
+	if err != nil {
+		return err
+	}
+	imageAssetsStore[fileName] = pixel.PictureDataFromImage(img)
+	return nil
+}
+
+// CreateSprite take a pre-loaded picture from the assets store and produces a new sprite from it.
+func CreateSprite(fileName ImageFile) (*pixel.Sprite, error) {
+	pic, ok := imageAssetsStore[fileName]
+	if !ok {
+		return nil, errors.New("image \"" + fileName.String() + "\" was not found in the assets store")
+	}
+	return pixel.NewSprite(pic, pic.Bounds()), nil
+}
 
 // ImageFile represents an image file name.
 type ImageFile string
