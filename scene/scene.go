@@ -1,15 +1,16 @@
-package game
+// Package scene manages the scene and executes different scene layers.
+package scene
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
-	"golang.org/x/image/colornames"
-
 	"github.com/jemgunay/game/player"
 	"github.com/jemgunay/game/server"
 	"github.com/jemgunay/game/world"
+	"golang.org/x/image/colornames"
 )
 
 // Layer is a drawable and updatable scene layer.
@@ -18,7 +19,34 @@ type Layer interface {
 	Draw()
 }
 
-var layerStack []Layer
+var (
+	layerStack []Layer
+	win        *pixelgl.Window
+)
+
+// Start initialises and starts up the scene.
+func Start(w *pixelgl.Window) {
+	win = w
+	// push a new game layer to the scene
+	Push(NewMainMenu())
+
+	// main game loop
+	prevTimestamp := time.Now()
+	for !win.Closed() {
+		dt := time.Since(prevTimestamp).Seconds()
+		prevTimestamp = time.Now()
+
+		for _, layer := range layerStack {
+			layer.Update(dt)
+		}
+
+		win.Clear(colornames.Greenyellow)
+		for _, layer := range layerStack {
+			layer.Draw()
+		}
+		win.Update()
+	}
+}
 
 // Push pushes a new layer to the layer stack (above the previous layer).
 func Push(layer Layer) {
@@ -30,19 +58,6 @@ func Pop() {
 	if len(layerStack) > 0 {
 		layerStack = layerStack[:len(layerStack)-1]
 	}
-}
-
-// Step calls the Update and Draw function for each of the layers in the layer stack, then updates the window itself.
-func Step(dt float64) {
-	for _, layer := range layerStack {
-		layer.Update(dt)
-	}
-
-	win.Clear(colornames.Greenyellow)
-	for _, layer := range layerStack {
-		layer.Draw()
-	}
-	win.Update()
 }
 
 // MainMenu is the main menu layer which is first displayed upon game startup.
