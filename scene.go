@@ -1,4 +1,4 @@
-package scene
+package game
 
 import (
 	"fmt"
@@ -14,8 +14,8 @@ import (
 
 // Layer is a drawable and updatable scene layer.
 type Layer interface {
-	Update(win *pixelgl.Window, dt float64)
-	Draw(win *pixelgl.Window)
+	Update(dt float64)
+	Draw()
 }
 
 var layerStack []Layer
@@ -33,14 +33,14 @@ func Pop() {
 }
 
 // Step calls the Update and Draw function for each of the layers in the layer stack, then updates the window itself.
-func Step(win *pixelgl.Window, dt float64) {
+func Step(dt float64) {
 	for _, layer := range layerStack {
-		layer.Update(win, dt)
+		layer.Update(dt)
 	}
 
 	win.Clear(colornames.Greenyellow)
 	for _, layer := range layerStack {
-		layer.Draw(win)
+		layer.Draw()
 	}
 	win.Update()
 }
@@ -54,7 +54,7 @@ func NewMainMenu() *MainMenu {
 }
 
 // Update updates the main menu layer logic.
-func (m *MainMenu) Update(win *pixelgl.Window, dt float64) {
+func (m *MainMenu) Update(dt float64) {
 	if win.Pressed(pixelgl.KeyEnter) {
 		// kill main menu and launch game layer
 		Pop()
@@ -71,7 +71,7 @@ func (m *MainMenu) Update(win *pixelgl.Window, dt float64) {
 }
 
 // Draw draws the main menu layer to the window.
-func (m *MainMenu) Draw(win *pixelgl.Window) {}
+func (m *MainMenu) Draw() {}
 
 // Game is the main interactive game functionality layer.
 type Game struct {
@@ -112,7 +112,7 @@ func NewGame() (*Game, error) {
 }
 
 // Update updates the game layer logic.
-func (g *Game) Update(win *pixelgl.Window, dt float64) {
+func (g *Game) Update(dt float64) {
 	// window camera
 	cam := pixel.IM.Scaled(g.mainPlayer.Pos, g.camScale).Moved(win.Bounds().Center().Sub(g.mainPlayer.Pos))
 	win.SetMatrix(cam)
@@ -152,7 +152,7 @@ func (g *Game) Update(win *pixelgl.Window, dt float64) {
 }
 
 // Draw draws the game layer to the window.
-func (g *Game) Draw(win *pixelgl.Window) {
+func (g *Game) Draw() {
 	// draw tiles
 	g.tileGrid.Draw(win)
 	// draw players
@@ -171,7 +171,7 @@ func NewOverlayMenu() *OverlayMenu {
 }
 
 // Update updates the overlay menu layer logic.
-func (m *OverlayMenu) Update(win *pixelgl.Window, dt float64) {}
+func (m *OverlayMenu) Update(dt float64) {}
 
 // Draw draws the overlay menu layer to the window.
-func (m *OverlayMenu) Draw(win *pixelgl.Window) {}
+func (m *OverlayMenu) Draw() {}
