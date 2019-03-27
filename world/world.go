@@ -13,6 +13,20 @@ import (
 	"github.com/jemgunay/game/file"
 )
 
+const (
+	tileSize  = 201
+	worldSize = 50
+
+	// weight/noisiness
+	perlinAlpha = 2.0
+	// harmonic scaling/spacing
+	perlinBeta = 1.0
+	// number of iterations
+	perlinIterations = 3
+	// source of perlin noise randomness
+	perlinSeed = int64(100)
+)
+
 // Tile represents a single tile sprite and its corresponding properties.
 type Tile struct {
 	fileName file.ImageFile
@@ -27,14 +41,16 @@ type Tile struct {
 
 // TileGrid is a concurrency safe map of tiles.
 type TileGrid struct {
-	tiles map[string]*Tile
+	tiles           map[string]*Tile
+	perlinGenerator *perlin.Perlin
 	sync.RWMutex
 }
 
 // NewTileGrid creates and initialises a new tile grid.
 func NewTileGrid() *TileGrid {
 	return &TileGrid{
-		tiles: make(map[string]*Tile),
+		tiles:           make(map[string]*Tile),
+		perlinGenerator: perlin.NewPerlinRandSource(perlinAlpha, perlinBeta, perlinIterations, rand.NewSource(perlinSeed)),
 	}
 }
 
@@ -82,29 +98,14 @@ func (g *TileGrid) Draw(win *pixelgl.Window) {
 	}
 }
 
-const (
-	tileSize  = 201
-	worldSize = 50
-
-	// weight/noisiness
-	perlinAlpha = 2.0
-	// harmonic scaling/spacing
-	perlinBeta = 1.0
-	// number of iterations
-	perlinIterations = 3
-	// source of perlin noise randomness
-	perlinSeed = int64(100)
-)
-
 // GenerateChunk generates a chunk of tiles.
 func (g *TileGrid) GenerateChunk() error {
 	var minZ, maxZ float64
 
 	// generate perlin noise map
-	p := perlin.NewPerlinRandSource(perlinAlpha, perlinBeta, perlinIterations, rand.NewSource(perlinSeed))
 	for x := 0; x < worldSize; x++ {
 		for y := 0; y < worldSize; y++ {
-			z := p.Noise2D(float64(x)/10, float64(y)/10) + 1
+			z := g.perlinGenerator.Noise2D(float64(x)/10, float64(y)/10) + 1
 
 			if z < minZ {
 				minZ = z
@@ -133,7 +134,7 @@ func (g *TileGrid) GenerateChunk() error {
 	}
 
 	// determine road tiles which
-	for _, tile := range g.tiles {
+	/*for _, tile := range g.tiles {
 		if tile.fileName != file.RoadNESW {
 			continue
 		}
@@ -144,7 +145,7 @@ func (g *TileGrid) GenerateChunk() error {
 			tile.visible = false
 			//tile.visible = true
 		}
-	}
+	}*/
 
 	fmt.Printf("Min Z: %v\nMax Z: %v\n", minZ, maxZ)
 	return nil

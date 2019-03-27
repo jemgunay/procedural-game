@@ -16,15 +16,18 @@ import (
 	"github.com/jemgunay/game/world"
 )
 
-var players map[string]*player.Player
-
-// Run is the client entry point.
-func Run() {
-	cfg := pixelgl.WindowConfig{
+var (
+	cfg = pixelgl.WindowConfig{
 		Title:  "Test Game",
 		Bounds: pixel.R(0, 0, 1024, 768),
 		VSync:  true,
 	}
+
+	players map[string]*player.Player
+)
+
+// Run is the client entry point.
+func Run() {
 	win, err := pixelgl.NewWindow(cfg)
 	if err != nil {
 		fmt.Printf("failed create new window: %s\n", err)

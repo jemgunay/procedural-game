@@ -1,3 +1,4 @@
+// Package player contains player creation and processing logic.
 package player
 
 import (
