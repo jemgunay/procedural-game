@@ -7,6 +7,7 @@ import (
 
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
+
 	"github.com/jemgunay/game/file"
 	"github.com/jemgunay/game/scene"
 )

@@ -32,7 +32,7 @@ func Pop() {
 	}
 }
 
-// Update calls the Update and Draw function for each of the layers in the layer stack.
+// Step calls the Update and Draw function for each of the layers in the layer stack, then updates the window itself.
 func Step(win *pixelgl.Window, dt float64) {
 	for _, layer := range layerStack {
 		layer.Update(win, dt)
@@ -53,7 +53,7 @@ func NewMainMenu() *MainMenu {
 	return &MainMenu{}
 }
 
-// Update updates the main menu logic.
+// Update updates the main menu layer logic.
 func (m *MainMenu) Update(win *pixelgl.Window, dt float64) {
 	if win.Pressed(pixelgl.KeyEnter) {
 		// kill main menu and launch game layer
@@ -70,10 +70,8 @@ func (m *MainMenu) Update(win *pixelgl.Window, dt float64) {
 	}
 }
 
-// Draw draws the main menu to the window.
-func (m *MainMenu) Draw(win *pixelgl.Window) {
-
-}
+// Draw draws the main menu layer to the window.
+func (m *MainMenu) Draw(win *pixelgl.Window) {}
 
 // Game is the main interactive game functionality layer.
 type Game struct {
@@ -113,6 +111,7 @@ func NewGame() (*Game, error) {
 	}, nil
 }
 
+// Update updates the game layer logic.
 func (g *Game) Update(win *pixelgl.Window, dt float64) {
 	// window camera
 	cam := pixel.IM.Scaled(g.mainPlayer.Pos, g.camScale).Moved(win.Bounds().Center().Sub(g.mainPlayer.Pos))
@@ -152,6 +151,7 @@ func (g *Game) Update(win *pixelgl.Window, dt float64) {
 	}
 }
 
+// Draw draws the game layer to the window.
 func (g *Game) Draw(win *pixelgl.Window) {
 	// draw tiles
 	g.tileGrid.Draw(win)
@@ -162,17 +162,16 @@ func (g *Game) Draw(win *pixelgl.Window) {
 	}
 }
 
-type OverlayMenu struct {
-}
+// OverlayMenu is the overlay menu layer which is drawn over the main game layer.
+type OverlayMenu struct{}
 
+// NewOverlayMenu creates and initialises a new overlay menu layer.
 func NewOverlayMenu() *OverlayMenu {
 	return &OverlayMenu{}
 }
 
-func (m *OverlayMenu) Update(win *pixelgl.Window, dt float64) {
+// Update updates the overlay menu layer logic.
+func (m *OverlayMenu) Update(win *pixelgl.Window, dt float64) {}
 
-}
-
-func (m *OverlayMenu) Draw(win *pixelgl.Window) {
-
-}
+// Draw draws the overlay menu layer to the window.
+func (m *OverlayMenu) Draw(win *pixelgl.Window) {}
