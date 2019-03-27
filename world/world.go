@@ -15,7 +15,7 @@ import (
 
 const (
 	tileSize  = 201
-	worldSize = 50
+	chunkSize = 50
 
 	// weight/noisiness
 	perlinAlpha = 2.0
@@ -41,16 +41,16 @@ type Tile struct {
 
 // TileGrid is a concurrency safe map of tiles.
 type TileGrid struct {
-	tiles           map[string]*Tile
-	perlinGenerator *perlin.Perlin
+	tiles          map[string]*Tile
+	noiseGenerator *perlin.Perlin
 	sync.RWMutex
 }
 
 // NewTileGrid creates and initialises a new tile grid.
 func NewTileGrid() *TileGrid {
 	return &TileGrid{
-		tiles:           make(map[string]*Tile),
-		perlinGenerator: perlin.NewPerlinRandSource(perlinAlpha, perlinBeta, perlinIterations, rand.NewSource(perlinSeed)),
+		tiles:          make(map[string]*Tile),
+		noiseGenerator: perlin.NewPerlinRandSource(perlinAlpha, perlinBeta, perlinIterations, rand.NewSource(perlinSeed)),
 	}
 }
 
@@ -103,9 +103,9 @@ func (g *TileGrid) GenerateChunk() error {
 	var minZ, maxZ float64
 
 	// generate perlin noise map
-	for x := 0; x < worldSize; x++ {
-		for y := 0; y < worldSize; y++ {
-			z := g.perlinGenerator.Noise2D(float64(x)/10, float64(y)/10) + 1
+	for x := 0; x < chunkSize; x++ {
+		for y := 0; y < chunkSize; y++ {
+			z := g.noiseGenerator.Noise2D(float64(x)/10, float64(y)/10) + 1
 
 			if z < minZ {
 				minZ = z

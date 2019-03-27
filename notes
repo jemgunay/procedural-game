@@ -5,7 +5,7 @@ nc localhost 9000
 {"type":"register","val":"willyG"}
 
 2)
-{"type":"connect","val":"c5f247cd-3f83-4b28-9e0c-6b5ac4a12db6"}
+{"type":"connect","val":"e620907b-eb42-4119-960d-6ef42cb41860"}
 
 3)
 {"type":"disconnect"}

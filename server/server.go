@@ -13,7 +13,8 @@ import (
 var (
 	tcpPort  string
 	stopChan = make(chan struct{})
-	userDB   = UserDB{
+
+	userDB = UserDB{
 		users: make(map[string]User),
 	}
 )
@@ -25,7 +26,7 @@ func Start(port uint64) error {
 	// bind TCP listener
 	listener, err := net.Listen("tcp", ":"+tcpPort)
 	if err != nil {
-		return fmt.Errorf("failed to bind TCP on port %s: %s\n", tcpPort, err)
+		return fmt.Errorf("failed to bind TCP on port %s: %s", tcpPort, err)
 	}
 	defer listener.Close()
 
@@ -77,16 +78,13 @@ func handleConn(conn net.Conn) {
 	addr := conn.RemoteAddr().String()
 	fmt.Println("TCP client connection established on " + addr)
 
-	var (
-		user User
-		err  error
-	)
+	var user User
 
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
 		// unmarshal raw request
 		var msg Message
-		if err = json.Unmarshal(scanner.Bytes(), &msg); err != nil {
+		if err := json.Unmarshal(scanner.Bytes(), &msg); err != nil {
 			fmt.Printf("invalid request received from %s, %s:\n%s\n", addr, err, scanner.Text())
 			continue
 		}
