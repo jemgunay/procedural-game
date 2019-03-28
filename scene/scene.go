@@ -21,7 +21,8 @@ type Layer interface {
 
 var (
 	layerStack []Layer
-	win        *pixelgl.Window
+	// keep an internal reference to the window
+	win *pixelgl.Window
 )
 
 // Start initialises and starts up the scene.
@@ -40,7 +41,6 @@ func Start(w *pixelgl.Window) {
 			layer.Update(dt)
 		}
 
-		win.Clear(colornames.Greenyellow)
 		for _, layer := range layerStack {
 			layer.Draw()
 		}
@@ -66,16 +66,21 @@ func Count() int {
 }
 
 // MainMenu is the main menu layer which is first displayed upon game startup.
-type MainMenu struct{
+type MainMenu struct {
 	ui *UIContainer
 }
 
 // NewMainMenu creates and initialises a new main menu layer.
 func NewMainMenu() *MainMenu {
-	ui := NewUIContainer(win.Bounds())
-	ui.AddButton(NewButton())
-	ui.AddButton(NewButton())
-	ui.AddButton(NewButton())
+	ui := NewUIContainer(NewPadding(5), func() pixel.Rect {
+		b := win.Bounds()
+		return b.Resized(b.Center(), pixel.V(b.Size().X, b.Size().Y*0.5))
+	})
+	ui.AddButton(
+		NewButton("Button 1", colornames.Palegreen, colornames.White),
+		NewButton("Button 1", colornames.Palegoldenrod, colornames.White),
+		NewButton("Button 1", colornames.Paleturquoise, colornames.White),
+	)
 	return &MainMenu{
 		ui: ui,
 	}
@@ -103,6 +108,7 @@ func (m *MainMenu) Update(dt float64) {
 
 // Draw draws the main menu layer to the window.
 func (m *MainMenu) Draw() {
+	win.Clear(colornames.Whitesmoke)
 	m.ui.Draw()
 }
 
@@ -186,6 +192,7 @@ func (g *Game) Update(dt float64) {
 
 // Draw draws the game layer to the window.
 func (g *Game) Draw() {
+	win.Clear(colornames.Greenyellow)
 	// draw tiles
 	g.tileGrid.Draw(win)
 	// draw players

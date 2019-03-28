@@ -15,3 +15,5 @@ This is a game test with the pixel game engine package.
 - Continuous world tile generation upon exploring unseen territory.
 - Cars.
 - Weapons (and ability for players to die).
+- TOML config.
+- FPS counter enable/disable.
