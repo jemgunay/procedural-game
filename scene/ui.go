@@ -5,6 +5,7 @@ import (
 
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/imdraw"
+	"github.com/faiface/pixel/pixelgl"
 	"github.com/faiface/pixel/text"
 	"golang.org/x/image/font/basicfont"
 )
@@ -55,7 +56,12 @@ func NewUIContainer(padding Padding, boundsFunc func() pixel.Rect) *UIContainer 
 
 // AddButton adds a button to the UIContainer button stack.
 func (c *UIContainer) AddButton(btn ...*Button) {
-	c.buttons = append(c.buttons, btn...)
+	// reverse button order before appending
+	for i := len(btn)/2 - 1; i >= 0; i-- {
+		opp := len(btn) - 1 - i
+		btn[i], btn[opp] = btn[opp], btn[i]
+	}
+	c.buttons = append(btn, c.buttons...)
 }
 
 // Draw draws the UIContainer and its contents.
@@ -78,61 +84,110 @@ func (c *UIContainer) Draw() {
 	}
 }
 
+// styling presets/modifiers
+const btnFadeAlpha = 0.8
+
+var (
+	btnColourDisabled    = pixel.RGB(0.9, 0.9, 0.9)
+	btnColourDisabledAlt = pixel.RGB(0.8, 0.8, 0.8)
+)
+
 // Button is a standard UI button.
 type Button struct {
-	// Enabled determines if a button can be clicked.
-	Enabled bool
+	enabled bool
+	clicked bool
 
-	bgColour      pixel.RGBA
-	bgColourAlt   pixel.RGBA
-	imd           *imdraw.IMDraw
-	text          *text.Text
-	textColour    pixel.RGBA
-	textColourAlt pixel.RGBA
+	bgColour       pixel.RGBA
+	bgColourAlt    pixel.RGBA
+	label          string
+	labelColour    pixel.RGBA
+	labelColourAlt pixel.RGBA
 }
 
-// Draw draws the button background and label text.
+// Enabled indicates if the button should be styled with normal or disabled colours.
+func (b *Button) Enabled() bool {
+	return b.enabled
+}
+
+// ToggleEnabled toggles the button's enabled state.
+func (b *Button) ToggleEnabled() {
+	b.enabled = !b.enabled
+}
+
+// Clicked can be used to poll a button to determine if it has been clicked since the last check.
+func (b *Button) Clicked() bool {
+	if !b.enabled {
+		return false
+	}
+	if b.clicked {
+		// reset clicked value once polled
+		b.clicked = false
+		return true
+	}
+	return false
+}
+
+// Draw draws the button background and label label.
 func (b *Button) Draw(bounds pixel.Rect) {
-	// TODO: move this to an Update/Resize func and call only when window is resized
+	bg := imdraw.New(nil)
+	label := text.New(pixel.ZV, basicFontAtlas)
+
+	// colourise
+	if bounds.Contains(win.MousePosition()) {
+		// check if button has been clicked
+		if win.JustPressed(pixelgl.MouseButton1) {
+			b.clicked = true
+		}
+		if b.enabled {
+			bg.Color = b.bgColour
+			label.Color = b.labelColour
+		} else {
+			bg.Color = btnColourDisabled
+			label.Color = btnColourDisabledAlt
+		}
+	} else {
+		if b.enabled {
+			bg.Color = b.bgColourAlt
+			label.Color = b.labelColourAlt
+		} else {
+			bg.Color = btnColourDisabledAlt
+			label.Color = btnColourDisabled
+		}
+	}
+
 	// background
-	b.imd = imdraw.New(nil)
-	b.imd.Color = b.bgColour
-	b.imd.Push(
+	bg.Push(
 		bounds.Min,
 		pixel.V(bounds.Min.X, bounds.Max.Y),
 		bounds.Max,
 		pixel.V(bounds.Max.X, bounds.Min.Y),
 	)
-	b.imd.Polygon(0)
-	b.imd.Draw(win)
+	bg.Polygon(0)
+	bg.Draw(win)
 
-	// text
-	textScaleFactor := bounds.H() / b.text.Bounds().H()
-
-	textYOffset := (bounds.H() * 0.5) - (b.text.Bounds().H() * textScaleFactor * 0.35)
-	textXOffset := (bounds.W() * 0.5) - (b.text.Bounds().W() * textScaleFactor * 0.5)
-
-	textPos := bounds.Min.Add(pixel.V(textXOffset, textYOffset))
+	// label text
+	label.WriteString(b.label)
+	labelScaleFactor := bounds.H() / label.Bounds().H()
+	labelYOffset := (bounds.H() * 0.5) - (label.Bounds().H() * labelScaleFactor * 0.35)
+	labelXOffset := (bounds.W() * 0.5) - (label.Bounds().W() * labelScaleFactor * 0.5)
+	labelPos := bounds.Min.Add(pixel.V(labelXOffset, labelYOffset))
 
 	// scale width to fit background
-	b.text.Draw(win, pixel.IM.Scaled(b.text.Orig, textScaleFactor).Moved(textPos))
+	label.Draw(win, pixel.IM.Scaled(label.Orig, labelScaleFactor).Moved(labelPos))
 }
 
 // NewButton creates and initialises a new Button.
-func NewButton(label string, bgColour, textColour color.Color) *Button {
+func NewButton(label string, bgColour, labelColour color.Color) *Button {
 	b := &Button{
-		bgColour:      pixel.ToRGBA(bgColour),
-		bgColourAlt:   fadeColour(bgColour, buttonFadeAlpha),
-		text:          text.New(pixel.ZV, basicFontAtlas),
-		textColour:    fadeColour(textColour, buttonFadeAlpha),
-		textColourAlt: pixel.ToRGBA(textColour),
+		enabled:        true,
+		bgColour:       pixel.ToRGBA(bgColour),
+		bgColourAlt:    fadeColour(bgColour, btnFadeAlpha),
+		label:          label,
+		labelColour:    fadeColour(labelColour, btnFadeAlpha),
+		labelColourAlt: pixel.ToRGBA(labelColour),
 	}
-	b.text.Color = b.textColour
-	b.text.WriteString(label)
 	return b
 }
-
-const buttonFadeAlpha = 0.8
 
 func fadeColour(colour color.Color, alpha float64) pixel.RGBA {
 	c := pixel.ToRGBA(colour)

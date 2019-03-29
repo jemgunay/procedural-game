@@ -67,40 +67,51 @@ func Count() int {
 
 // MainMenu is the main menu layer which is first displayed upon game startup.
 type MainMenu struct {
-	ui *UIContainer
+	uiContainer *UIContainer
+	createBtn   *Button
+	joinBtn     *Button
+	settingsBtn *Button
 }
 
 // NewMainMenu creates and initialises a new main menu layer.
 func NewMainMenu() *MainMenu {
-	ui := NewUIContainer(NewPadding(5), func() pixel.Rect {
+	menu := &MainMenu{
+		createBtn:   NewButton("Create Game", colornames.Paleturquoise, colornames.White),
+		joinBtn:     NewButton("Join Game", colornames.Palegreen, colornames.White),
+		settingsBtn: NewButton("Settings", colornames.Palevioletred, colornames.White),
+	}
+
+	// create container sized half the window height
+	container := NewUIContainer(NewPadding(5), func() pixel.Rect {
 		b := win.Bounds()
 		return b.Resized(b.Center(), pixel.V(b.Size().X, b.Size().Y*0.5))
 	})
-	ui.AddButton(
-		NewButton("Button 1", colornames.Palegreen, colornames.White),
-		NewButton("Button 1", colornames.Palegoldenrod, colornames.White),
-		NewButton("Button 1", colornames.Paleturquoise, colornames.White),
-	)
-	return &MainMenu{
-		ui: ui,
-	}
+	container.AddButton(menu.createBtn, menu.joinBtn, menu.settingsBtn)
+	menu.uiContainer = container
+
+	return menu
 }
 
 // Update updates the main menu layer logic.
 func (m *MainMenu) Update(dt float64) {
-	if win.Pressed(pixelgl.KeyEnter) {
-		// kill main menu and launch game layer
-		Pop()
-		// push a new game layer to the scene
+	switch {
+	case m.createBtn.Clicked():
+		// create a new game layer
 		gameLayer, err := NewGame()
 		if err != nil {
 			fmt.Printf("failed to create game scene: %s\n", err)
-			// restore main menu
-			Push(m)
 			return
 		}
+		// pop main menu and push game layer
+		Pop()
 		Push(gameLayer)
+
+	case m.joinBtn.Clicked():
+		m.joinBtn.ToggleEnabled()
+	case m.settingsBtn.Clicked():
+		m.settingsBtn.ToggleEnabled()
 	}
+
 	if win.Pressed(pixelgl.KeyEscape) {
 		win.SetClosed(true)
 	}
@@ -109,7 +120,7 @@ func (m *MainMenu) Update(dt float64) {
 // Draw draws the main menu layer to the window.
 func (m *MainMenu) Draw() {
 	win.Clear(colornames.Whitesmoke)
-	m.ui.Draw()
+	m.uiContainer.Draw()
 }
 
 // Game is the main interactive game functionality layer.
