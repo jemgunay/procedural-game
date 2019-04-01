@@ -20,9 +20,9 @@ func StartClient() {
 	}
 
 	cfg := pixelgl.WindowConfig{
-		Title:  "Test Game",
-		Bounds: pixel.R(0, 0, 1024, 768),
-		VSync:  true,
+		Title:     "Test Game",
+		Bounds:    pixel.R(0, 0, 1024, 768),
+		VSync:     true,
 		Resizable: true,
 	}
 
