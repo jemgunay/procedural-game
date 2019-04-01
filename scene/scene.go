@@ -174,6 +174,7 @@ type Game struct {
 
 	cam           pixel.Matrix
 	camScale      float64
+	prevMousePos  pixel.Vec
 	locked        bool
 	overlayResult chan LayerResult
 }
@@ -250,12 +251,14 @@ func (g *Game) Update(dt float64) {
 		g.locked = true
 		g.overlayResult = Push(NewOverlayMenu())
 	}
+
 	// handle mouse movement
-	if win.MousePosition() != win.MousePreviousPosition() {
+	if win.MousePosition() != g.prevMousePos {
 		// point mainPlayer at mouse
 		mousePos := g.cam.Unproject(win.MousePosition())
 		g.mainPlayer.PointTo(mousePos)
 	}
+	g.prevMousePos = win.MousePosition()
 }
 
 // Draw draws the game layer to the window.
@@ -297,7 +300,7 @@ func NewOverlayMenu() *OverlayMenu {
 		quitBtn:     NewButton("Quit Game", colornames.Palevioletred, colornames.White),
 	}
 	container.AddButton(menu.resumeBtn, menu.serverBtn, menu.quitBtn)
-	
+
 	return menu
 }
 
