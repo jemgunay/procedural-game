@@ -7,10 +7,11 @@ import (
 
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
+	"golang.org/x/image/colornames"
+
 	"github.com/jemgunay/game/player"
 	"github.com/jemgunay/game/server"
 	"github.com/jemgunay/game/world"
-	"golang.org/x/image/colornames"
 )
 
 // Layer is a drawable and updatable scene layer.
@@ -20,11 +21,8 @@ type Layer interface {
 }
 
 var (
-	layerStack []Layer
-	// keep an internal reference to the window
-	win *pixelgl.Window
-	// used to indicate a layer pop to a layer push caller
-	popChan = make(chan struct{})
+	layerStack []LayerWrapper
+	win        *pixelgl.Window
 )
 
 // Start initialises and starts up the scene.
@@ -46,7 +44,7 @@ func Start() {
 	}
 	//win.SetSmooth(true)
 
-	// push a new game layer to the scene
+	// push a main menu layer to the scene
 	Push(NewMainMenu())
 
 	// main game loop
@@ -66,22 +64,37 @@ func Start() {
 	}
 }
 
+type LayerResult string
+
+const (
+	Default LayerResult = "default"
+	Quit    LayerResult = "quit"
+)
+
+type LayerWrapper struct {
+	Layer
+	resultCh chan LayerResult
+}
+
 // Push pushes a new layer to the layer stack (above the previous layer).
-func Push(layer Layer) {
-	layerStack = append(layerStack, layer)
+func Push(layer Layer) chan LayerResult {
+	ch := make(chan LayerResult, 1)
+	layerStack = append(layerStack, LayerWrapper{
+		Layer:    layer,
+		resultCh: ch,
+	})
+	return ch
 }
 
 // Pop pops the most recently added layer from the layer stack.
-func Pop() {
+func Pop(result LayerResult) {
 	if len(layerStack) > 0 {
+		// send result to subscriber
+		layerStack[len(layerStack)-1].resultCh <- result
+		close(layerStack[len(layerStack)-1].resultCh)
+		// pop layer from end of stack
 		layerStack = layerStack[:len(layerStack)-1]
 	}
-	popChan <- struct{}{}
-}
-
-// WaitForPop is used to block a layer's update loop until it's child layer has been popped.
-func WaitForPop() {
-	<-popChan
 }
 
 // Count returns the number of layers in the layer stack.
@@ -99,19 +112,20 @@ type MainMenu struct {
 
 // NewMainMenu creates and initialises a new main menu layer.
 func NewMainMenu() *MainMenu {
-	menu := &MainMenu{
-		createBtn:   NewButton("Create Game", colornames.Paleturquoise, colornames.White),
-		joinBtn:     NewButton("Join Game", colornames.Palegreen, colornames.White),
-		settingsBtn: NewButton("Settings", colornames.Palevioletred, colornames.White),
-	}
-
 	// create container sized half the window height
 	container := NewUIContainer(NewPadding(5), func() pixel.Rect {
 		b := win.Bounds()
 		return b.Resized(b.Center(), pixel.V(b.Size().X, b.Size().Y*0.5))
 	})
+
+	menu := &MainMenu{
+		uiContainer: container,
+		createBtn:   NewButton("Create Game", colornames.Paleturquoise, colornames.White),
+		joinBtn:     NewButton("Join Game", colornames.Palegreen, colornames.White),
+		settingsBtn: NewButton("Settings", colornames.Palevioletred, colornames.White),
+	}
+
 	container.AddButton(menu.createBtn, menu.joinBtn, menu.settingsBtn)
-	menu.uiContainer = container
 
 	return menu
 }
@@ -127,7 +141,7 @@ func (m *MainMenu) Update(dt float64) {
 			return
 		}
 		// pop main menu and push game layer
-		Pop()
+		Pop(Default)
 		Push(gameLayer)
 
 	case m.joinBtn.Clicked():
@@ -136,13 +150,15 @@ func (m *MainMenu) Update(dt float64) {
 		m.settingsBtn.ToggleEnabled()
 	}
 
-	if win.Pressed(pixelgl.KeyEscape) {
+	if win.JustPressed(pixelgl.KeyEscape) {
 		win.SetClosed(true)
 	}
 }
 
 // Draw draws the main menu layer to the window.
 func (m *MainMenu) Draw() {
+	win.SetMatrix(pixel.IM)
+
 	win.Clear(colornames.Whitesmoke)
 	m.uiContainer.Draw()
 }
@@ -153,7 +169,10 @@ type Game struct {
 	mainPlayer   *player.Player
 	otherPlayers map[string]*player.Player
 
-	camScale float64
+	cam           pixel.Matrix
+	camScale      float64
+	locked        bool
+	overlayResult chan LayerResult
 }
 
 // NewGame creates and initialises a new Game layer.
@@ -187,9 +206,19 @@ func NewGame() (*Game, error) {
 
 // Update updates the game layer logic.
 func (g *Game) Update(dt float64) {
-	// window camera
-	cam := pixel.IM.Scaled(g.mainPlayer.Pos, g.camScale).Moved(win.Bounds().Center().Sub(g.mainPlayer.Pos))
-	win.SetMatrix(cam)
+	if g.locked {
+		// check for response from overlay menu layer
+		select {
+		case res := <-g.overlayResult:
+			if res == Quit {
+				win.SetClosed(true)
+				return
+			}
+			g.locked = false
+		default:
+			return
+		}
+	}
 
 	// handle keyboard input
 	if win.Pressed(pixelgl.KeyW) {
@@ -206,27 +235,32 @@ func (g *Game) Update(dt float64) {
 	}
 	if win.Pressed(pixelgl.KeyR) {
 		if g.camScale < 2 {
-			g.camScale += 0.01
+			g.camScale += 0.02
 		}
 	}
 	if win.Pressed(pixelgl.KeyF) {
 		if g.camScale > 0 {
-			g.camScale -= 0.01
+			g.camScale -= 0.02
 		}
 	}
-	if win.Pressed(pixelgl.KeyEscape) {
-		win.SetClosed(true)
+	if win.JustPressed(pixelgl.KeyEscape) {
+		g.locked = true
+		g.overlayResult = Push(NewOverlayMenu())
 	}
 	// handle mouse movement
 	if win.MousePosition() != win.MousePreviousPosition() {
 		// point mainPlayer at mouse
-		mousePos := cam.Unproject(win.MousePosition())
+		mousePos := g.cam.Unproject(win.MousePosition())
 		g.mainPlayer.PointTo(mousePos)
 	}
 }
 
 // Draw draws the game layer to the window.
 func (g *Game) Draw() {
+	// window camera
+	g.cam = pixel.IM.Scaled(g.mainPlayer.Pos, g.camScale).Moved(win.Bounds().Center().Sub(g.mainPlayer.Pos))
+	win.SetMatrix(g.cam)
+
 	win.Clear(colornames.Greenyellow)
 	// draw tiles
 	g.tileGrid.Draw(win)
@@ -238,15 +272,43 @@ func (g *Game) Draw() {
 }
 
 // OverlayMenu is the overlay menu layer which is drawn over the main game layer.
-type OverlayMenu struct{}
+type OverlayMenu struct {
+	uiContainer *UIContainer
+	resumeBtn   *Button
+	serverBtn   *Button
+	quitBtn     *Button
+}
 
 // NewOverlayMenu creates and initialises a new overlay menu layer.
 func NewOverlayMenu() *OverlayMenu {
-	return &OverlayMenu{}
+	menu := &OverlayMenu{
+		resumeBtn: NewButton("Resume", colornames.Paleturquoise, colornames.White),
+		serverBtn: NewButton("Server Settings", colornames.Palegreen, colornames.White),
+		quitBtn:   NewButton("Quit Game", colornames.Palevioletred, colornames.White),
+	}
+
+	// create container sized half the window height
+	container := NewUIContainer(NewPadding(5), func() pixel.Rect {
+		b := win.Bounds()
+		return b.Resized(b.Center(), pixel.V(b.Size().X, b.Size().Y*0.5))
+	})
+	container.AddButton(menu.resumeBtn, menu.serverBtn, menu.quitBtn)
+	menu.uiContainer = container
+	return menu
 }
 
 // Update updates the overlay menu layer logic.
-func (m *OverlayMenu) Update(dt float64) {}
+func (m *OverlayMenu) Update(dt float64) {
+	switch {
+	case m.resumeBtn.Clicked() || win.JustPressed(pixelgl.KeyEscape):
+		Pop(Default)
+	case m.quitBtn.Clicked():
+		Pop(Quit)
+	}
+}
 
 // Draw draws the overlay menu layer to the window.
-func (m *OverlayMenu) Draw() {}
+func (m *OverlayMenu) Draw() {
+	win.SetMatrix(pixel.IM)
+	m.uiContainer.Draw()
+}
