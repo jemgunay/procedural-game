@@ -64,13 +64,16 @@ func Start() {
 	}
 }
 
+// LayerResult represents the state returned when a layer is popped from the layer stack.
 type LayerResult string
 
+// Layer state constants.
 const (
 	Default LayerResult = "default"
 	Quit    LayerResult = "quit"
 )
 
+// LayerWrapper associates a LayerResult channel with a Layer.
 type LayerWrapper struct {
 	Layer
 	resultCh chan LayerResult
@@ -281,19 +284,20 @@ type OverlayMenu struct {
 
 // NewOverlayMenu creates and initialises a new overlay menu layer.
 func NewOverlayMenu() *OverlayMenu {
-	menu := &OverlayMenu{
-		resumeBtn: NewButton("Resume", colornames.Paleturquoise, colornames.White),
-		serverBtn: NewButton("Server Settings", colornames.Palegreen, colornames.White),
-		quitBtn:   NewButton("Quit Game", colornames.Palevioletred, colornames.White),
-	}
-
 	// create container sized half the window height
 	container := NewUIContainer(NewPadding(5), func() pixel.Rect {
 		b := win.Bounds()
 		return b.Resized(b.Center(), pixel.V(b.Size().X, b.Size().Y*0.5))
 	})
+
+	menu := &OverlayMenu{
+		uiContainer: container,
+		resumeBtn:   NewButton("Resume", colornames.Paleturquoise, colornames.White),
+		serverBtn:   NewButton("Server Settings", colornames.Palegreen, colornames.White),
+		quitBtn:     NewButton("Quit Game", colornames.Palevioletred, colornames.White),
+	}
 	container.AddButton(menu.resumeBtn, menu.serverBtn, menu.quitBtn)
-	menu.uiContainer = container
+	
 	return menu
 }
 
@@ -302,6 +306,8 @@ func (m *OverlayMenu) Update(dt float64) {
 	switch {
 	case m.resumeBtn.Clicked() || win.JustPressed(pixelgl.KeyEscape):
 		Pop(Default)
+	case m.serverBtn.Clicked():
+		m.serverBtn.ToggleEnabled()
 	case m.quitBtn.Clicked():
 		Pop(Quit)
 	}
