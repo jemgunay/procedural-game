@@ -23,11 +23,29 @@ var (
 	layerStack []Layer
 	// keep an internal reference to the window
 	win *pixelgl.Window
+	// used to indicate a layer pop to a layer push caller
+	popChan = make(chan struct{})
 )
 
 // Start initialises and starts up the scene.
-func Start(w *pixelgl.Window) {
-	win = w
+func Start() {
+	// create window config
+	cfg := pixelgl.WindowConfig{
+		Title:     "Test Game",
+		Bounds:    pixel.R(0, 0, 1024, 768),
+		VSync:     true,
+		Resizable: true,
+	}
+
+	// create window
+	var err error
+	win, err = pixelgl.NewWindow(cfg)
+	if err != nil {
+		fmt.Printf("failed create new window: %s\n", err)
+		return
+	}
+	//win.SetSmooth(true)
+
 	// push a new game layer to the scene
 	Push(NewMainMenu())
 
@@ -58,6 +76,12 @@ func Pop() {
 	if len(layerStack) > 0 {
 		layerStack = layerStack[:len(layerStack)-1]
 	}
+	popChan <- struct{}{}
+}
+
+// WaitForPop is used to block a layer's update loop until it's child layer has been popped.
+func WaitForPop() {
+	<-popChan
 }
 
 // Count returns the number of layers in the layer stack.
