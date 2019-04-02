@@ -1,6 +1,14 @@
 # Game Test
 
-This is a game test with the pixel game engine package.
+This is a multiplayer game test with the pixel game engine package.
+
+## Build & Run
+
+```bash
+go mod download
+cd cmd/client
+go build && ./client
+```
 
 ## TODO
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
+	"github.com/jemgunay/game/client"
 	"golang.org/x/image/colornames"
 
 	"github.com/jemgunay/game/player"
@@ -138,9 +139,9 @@ func (m *MainMenu) Update(dt float64) {
 	switch {
 	case m.createBtn.Clicked():
 		// create a new game layer
-		gameLayer, err := NewGame()
+		gameLayer, err := NewGame(Server)
 		if err != nil {
-			fmt.Printf("failed to create game scene: %s\n", err)
+			fmt.Printf("failed to create game layer: %s\n", err)
 			return
 		}
 		// pop main menu and push game layer
@@ -148,7 +149,16 @@ func (m *MainMenu) Update(dt float64) {
 		Push(gameLayer)
 
 	case m.joinBtn.Clicked():
-		m.joinBtn.ToggleEnabled()
+		// create a new game layer
+		gameLayer, err := NewGame(Client)
+		if err != nil {
+			fmt.Printf("failed to create game layer: %s\n", err)
+			return
+		}
+		// pop main menu and push game layer
+		Pop(Default)
+		Push(gameLayer)
+
 	case m.settingsBtn.Clicked():
 		m.settingsBtn.ToggleEnabled()
 	}
@@ -162,7 +172,7 @@ func (m *MainMenu) Update(dt float64) {
 func (m *MainMenu) Draw() {
 	win.SetMatrix(pixel.IM)
 
-	win.Clear(colornames.Whitesmoke)
+	win.Clear(colornames.Navajowhite)
 	m.uiContainer.Draw()
 }
 
@@ -179,25 +189,49 @@ type Game struct {
 	overlayResult chan LayerResult
 }
 
+type GameType string
+
+const (
+	Client GameType = "client"
+	Server GameType = "server"
+)
+
 // NewGame creates and initialises a new Game layer.
-func NewGame() (*Game, error) {
+func NewGame(gameType GameType) (*Game, error) {
 	// generate world
 	tileGrid := world.NewTileGrid()
 	if err := tileGrid.GenerateChunk(); err != nil {
 		return nil, fmt.Errorf("failed to generate world: %s", err)
 	}
 
-	// start server
-	go func() {
-		if err := server.Start(9000); err != nil {
-			fmt.Printf("server shut down: %s\n", err)
-		}
-	}()
-
 	// create main player
-	mainPlayer, err := player.New("jemgunay")
+	userName := "jemgunay"
+	mainPlayer, err := player.New(userName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create player: %s", err)
+	}
+
+	// start server
+	go func() {
+		switch gameType {
+		case Client:
+			if err := client.Start(9000); err != nil {
+				fmt.Printf("server shut down: %s\n", err)
+			}
+		case Server:
+			if err := server.Start(9000); err != nil {
+				fmt.Printf("server shut down: %s\n", err)
+			}
+		}
+	}()
+	time.Sleep(time.Second * 2)
+
+	if gameType == Client {
+		m := server.Message{
+			Type:  "register",
+			Value: userName,
+		}
+		client.Send(m)
 	}
 
 	return &Game{
@@ -318,6 +352,48 @@ func (m *OverlayMenu) Update(dt float64) {
 
 // Draw draws the overlay menu layer to the window.
 func (m *OverlayMenu) Draw() {
+	win.SetMatrix(pixel.IM)
+	m.uiContainer.Draw()
+}
+
+type JoinGameMenu struct {
+	uiContainer *UIContainer
+	resumeBtn   *Button
+	serverBtn   *Button
+	quitBtn     *Button
+}
+
+func NewJoinGameMenu() *JoinGameMenu {
+	// create container sized half the window height
+	container := NewUIContainer(NewPadding(5), func() pixel.Rect {
+		b := win.Bounds()
+		return b.Resized(b.Center(), pixel.V(b.Size().X, b.Size().Y*0.5))
+	})
+
+	menu := &JoinGameMenu{
+		uiContainer: container,
+		resumeBtn:   NewButton("Resume", colornames.Paleturquoise, colornames.White),
+		serverBtn:   NewButton("Server Settings", colornames.Palegreen, colornames.White),
+		quitBtn:     NewButton("Quit Game", colornames.Palevioletred, colornames.White),
+	}
+	container.AddButton(menu.resumeBtn, menu.serverBtn, menu.quitBtn)
+
+	return menu
+}
+
+func (m *JoinGameMenu) Update(dt float64) {
+	switch {
+	case m.resumeBtn.Clicked() || win.JustPressed(pixelgl.KeyEscape):
+		Pop(Default)
+	case m.serverBtn.Clicked():
+		m.serverBtn.ToggleEnabled()
+	case m.quitBtn.Clicked():
+		Pop(Quit)
+	}
+}
+
+// Draw draws the overlay menu layer to the window.
+func (m *JoinGameMenu) Draw() {
 	win.SetMatrix(pixel.IM)
 	m.uiContainer.Draw()
 }

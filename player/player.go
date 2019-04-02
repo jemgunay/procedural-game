@@ -61,6 +61,11 @@ func (p *Player) Right(dt float64) {
 	p.Pos.X += p.speed * dt
 }
 
+// MoveTo moves the player to the specified coordinates.
+func (p *Player) MoveTo(target pixel.Vec) {
+	p.Pos = target
+}
+
 // PointTo rotates the player to face the specified target.
 func (p *Player) PointTo(target pixel.Vec) {
 	p.orientation = math.Atan2(target.Y-p.Pos.Y, target.X-p.Pos.X)
