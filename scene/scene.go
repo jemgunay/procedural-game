@@ -172,12 +172,13 @@ func (m *MainMenu) Update(dt float64) {
 func (m *MainMenu) Draw() {
 	win.SetMatrix(pixel.IM)
 
-	win.Clear(colornames.Navajowhite)
+	win.Clear(colornames.White)
 	m.uiContainer.Draw()
 }
 
 // Game is the main interactive game functionality layer.
 type Game struct {
+	gameType     GameType
 	tileGrid     *world.TileGrid
 	mainPlayer   *player.Player
 	otherPlayers map[string]*player.Player
@@ -212,29 +213,27 @@ func NewGame(gameType GameType) (*Game, error) {
 	}
 
 	// start server
-	go func() {
-		switch gameType {
-		case Client:
-			if err := client.Start(9000); err != nil {
-				fmt.Printf("server shut down: %s\n", err)
-			}
-		case Server:
-			if err := server.Start(9000); err != nil {
-				fmt.Printf("server shut down: %s\n", err)
-			}
+	switch gameType {
+	case Client:
+		if err := client.Start(9000); err != nil {
+			return nil, fmt.Errorf("client failed to start: %s", err)
 		}
-	}()
-	time.Sleep(time.Second * 2)
 
-	if gameType == Client {
-		m := server.Message{
+		client.Send(server.Message{
 			Type:  "register",
 			Value: userName,
+		})
+	case Server:
+		if err := server.Start(9000); err != nil {
+			return nil, fmt.Errorf("server failed to start: %s", err)
 		}
-		client.Send(m)
+
+	default:
+		return nil, fmt.Errorf("unsupported game creation operation: %s", gameType)
 	}
 
 	return &Game{
+		gameType:     gameType,
 		tileGrid:     tileGrid,
 		mainPlayer:   mainPlayer,
 		otherPlayers: make(map[string]*player.Player),

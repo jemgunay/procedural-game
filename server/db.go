@@ -31,7 +31,7 @@ func (u *User) Send(msg Message) {
 		return
 	}
 
-	if _, err := u.conn.Write(rawMsg); err != nil {
+	if _, err := u.conn.Write(append(rawMsg, '\n')); err != nil {
 		fmt.Printf("failed to write \"%s\" to %s: %s\n", string(rawMsg), u.conn.RemoteAddr(), err)
 	}
 }

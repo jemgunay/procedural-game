@@ -12,6 +12,7 @@ import (
 
 var (
 	tcpPort  string
+	listener net.Listener
 	stopChan = make(chan struct{})
 
 	userDB = UserDB{
@@ -24,36 +25,40 @@ func Start(port uint64) error {
 	tcpPort = strconv.FormatUint(port, 10)
 
 	// bind TCP listener
-	listener, err := net.Listen("tcp", ":"+tcpPort)
+	var err error
+	listener, err = net.Listen("tcp", ":"+tcpPort)
 	if err != nil {
 		return fmt.Errorf("failed to bind TCP on port %s: %s", tcpPort, err)
 	}
-	defer listener.Close()
 
 	fmt.Printf("TCP server listening on %s\n", listener.Addr())
 
 	// main TCP server loop
-	for {
-		select {
-		case <-stopChan:
-			// shutdown server
-			break
+	go func() {
+		defer listener.Close()
 
-		default:
-			// listen for an incoming connection
-			conn, err := listener.Accept()
-			if err != nil {
-				fmt.Printf("failed to accept connection: %s\n", err)
+		for {
+			select {
+			case <-stopChan:
+				// shutdown server
 				break
-			}
-			// handle connection
-			go handleConn(conn)
-		}
-	}
 
-	// TODO: broadcast shutdown to all users
-	// TODO: add waitgroup to complete all connections before killing server so that shutdown messages can be sent to all clients
-	fmt.Println("TCP server shut down")
+			default:
+				// listen for an incoming connection
+				conn, err := listener.Accept()
+				if err != nil {
+					fmt.Printf("failed to accept connection: %s\n", err)
+					break
+				}
+				// handle connection
+				go handleConn(conn)
+			}
+		}
+
+		// TODO: broadcast shutdown to all users
+		// TODO: add waitgroup to complete all connections before killing server so that shutdown messages can be sent to all clients
+		fmt.Println("TCP server shut down")
+	}()
 
 	return nil
 }
@@ -80,14 +85,21 @@ func handleConn(conn net.Conn) {
 
 	var user User
 
-	scanner := bufio.NewScanner(conn)
-	for scanner.Scan() {
+	for {
+		resp, err := bufio.NewReader(conn).ReadString('\n')
+		if err != nil {
+			fmt.Printf("faield to read incoming TCP request: %s\n", err)
+			break
+		}
+
 		// unmarshal raw request
 		var msg Message
-		if err := json.Unmarshal(scanner.Bytes(), &msg); err != nil {
-			fmt.Printf("invalid request received from %s, %s:\n%s\n", addr, err, scanner.Text())
+		if err := json.Unmarshal([]byte(resp), &msg); err != nil {
+			fmt.Printf("invalid request received from %s, %s:\n%s\n", addr, err, []byte(resp))
 			continue
 		}
+
+		fmt.Printf("> [Server] Incoming TCP request:\n%v\n", msg)
 
 		// require a successful register/connect before allowing access to other request instruction types
 		if user.conn == nil {
