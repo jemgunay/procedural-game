@@ -1,3 +1,4 @@
+// Package main is the entry point for the game client.
 package main
 
 import (
@@ -7,5 +8,5 @@ import (
 )
 
 func main() {
-	pixelgl.Run(game.Run)
+	pixelgl.Run(game.StartClient)
 }
