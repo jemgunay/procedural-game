@@ -2,6 +2,7 @@
 package scene
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -147,6 +148,9 @@ func NewGame(gameType GameType) (*Game, error) {
 		if err := server.Start(":9000"); err != nil {
 			return nil, fmt.Errorf("server failed to start: %s", err)
 		}
+	} else {
+		// TODO: remove this test username
+		userName = "willyG"
 	}
 
 	// connect to server
@@ -154,19 +158,24 @@ func NewGame(gameType GameType) (*Game, error) {
 		return nil, fmt.Errorf("client failed to start: %s", err)
 	}
 
-	go func() {
-		for {
-			msg, ok := client.PollUpdate()
-			if !ok {
-				continue
-			}
-		}
-	}()
-
 	client.Send(server.Message{
 		Type:  "register",
 		Value: userName,
 	})
+
+	// wait for register success
+	for {
+		msg := client.Poll()
+		switch msg.Type {
+		case "register_success":
+			fmt.Printf("user UUID: %s\n", msg.Value)
+		case "register_failure":
+			return nil, errors.New(msg.Value)
+		default:
+			continue
+		}
+		break
+	}
 
 	return &Game{
 		gameType:     gameType,

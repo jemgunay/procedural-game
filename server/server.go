@@ -144,6 +144,10 @@ func establishUser(msg Message, conn net.Conn) (user User) {
 		user, err = userDB.Create(msg.Value, conn)
 		if err != nil {
 			err = fmt.Errorf("failed to create user: %s", err)
+			user.Send(Message{
+				Type:  "register_failure",
+				Value: err.Error(),
+			})
 			break
 		}
 

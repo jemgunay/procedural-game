@@ -53,14 +53,14 @@ func Start(addr string) error {
 	return nil
 }
 
-// PollUpdate pulls a message from the queue and returns it to be processed by the scene. If there are no messages in
-// the queue, .
-func PollUpdate() (server.Message, bool) {
+// Poll pulls a message from the queue and returns it to be processed by the scene. If there are no messages in
+// the queue, an empty Message is returned.
+func Poll() server.Message {
 	select {
 	case msg := <-messageQueue:
-		return msg, true
+		return msg
 	default:
-		return server.Message{}, false
+		return server.Message{}
 	}
 }
 
