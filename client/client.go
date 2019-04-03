@@ -5,57 +5,66 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"strconv"
 
 	"github.com/jemgunay/game/server"
 )
 
 var (
-	tcpPort string
-	conn    net.Conn
+	conn         net.Conn
+	messageQueue chan server.Message
 )
 
 // Start initialises a connection with a TCP game server.
-func Start(port uint64) error {
-	tcpPort = strconv.FormatUint(port, 10)
+func Start(addr string) error {
+	messageQueue = make(chan server.Message, 1024)
 
 	var err error
-	conn, err = net.Dial("tcp", "localhost:"+tcpPort)
+	conn, err = net.Dial("tcp", addr)
 	if err != nil {
-		return fmt.Errorf("failed to bind TCP on port %s: %s", tcpPort, err)
+		return fmt.Errorf("failed to bind TCP on port %s: %s", addr, err)
 	}
 
-	fmt.Printf("connecting to TCP server on %s\n", conn.RemoteAddr())
-
-	/*go func() {
-		for {
-			resp, err := bufio.NewReader(conn).ReadString('\n')
-			if err != nil {
-				fmt.Printf("error reading from connection: %s\n", err)
-			}
-
-			fmt.Println("> resp:\n" + resp)
-		}
-	}()*/
+	fmt.Println("TCP server connection established on " + addr)
 
 	go func() {
 		defer conn.Close()
 		// listen for reply
+		r := bufio.NewReader(conn)
 		for {
-			resp, err := bufio.NewReader(conn).ReadString('\n')
+			resp, err := r.ReadString('\n')
 			if err != nil {
-				fmt.Printf("faield to read incoming TCP request: %s\n", err)
+				fmt.Printf("failed to read incoming TCP request: %s\n", err)
 				break
 			}
-			fmt.Println("> incoming: " + resp)
+
+			// unmarshal raw request
+			var msg server.Message
+			if err := json.Unmarshal([]byte(resp), &msg); err != nil {
+				fmt.Printf("invalid request received from %s, %s:\n%s\n", addr, err, []byte(resp))
+				continue
+			}
+
+			messageQueue <- msg
 		}
 
-		fmt.Println("connection to server closed")
+		fmt.Println("TCP server connection disconnected on " + addr)
 	}()
 
 	return nil
 }
 
+// PollUpdate pulls a message from the queue and returns it to be processed by the scene. If there are no messages in
+// the queue, .
+func PollUpdate() (server.Message, bool) {
+	select {
+	case msg := <-messageQueue:
+		return msg, true
+	default:
+		return server.Message{}, false
+	}
+}
+
+// Send marshals and writes a message to a server.
 func Send(msg server.Message) {
 	fmt.Println("starting send operation")
 	rawMsg, err := json.Marshal(msg)

@@ -7,28 +7,27 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strconv"
 )
 
 var (
-	tcpPort  string
 	listener net.Listener
-	stopChan = make(chan struct{})
+	stopChan chan struct{}
 
-	userDB = UserDB{
-		users: make(map[string]User),
-	}
+	userDB UserDB
 )
 
 // Start starts the TCP server and polls for incoming TCP connections.
-func Start(port uint64) error {
-	tcpPort = strconv.FormatUint(port, 10)
+func Start(addr string) error {
+	stopChan = make(chan struct{})
+	userDB = UserDB{
+		users: make(map[string]User),
+	}
 
 	// bind TCP listener
 	var err error
-	listener, err = net.Listen("tcp", ":"+tcpPort)
+	listener, err = net.Listen("tcp", addr)
 	if err != nil {
-		return fmt.Errorf("failed to bind TCP on port %s: %s", tcpPort, err)
+		return fmt.Errorf("failed to bind TCP on port %s: %s", addr, err)
 	}
 
 	fmt.Printf("TCP server listening on %s\n", listener.Addr())
@@ -88,7 +87,7 @@ func handleConn(conn net.Conn) {
 	for {
 		resp, err := bufio.NewReader(conn).ReadString('\n')
 		if err != nil {
-			fmt.Printf("faield to read incoming TCP request: %s\n", err)
+			fmt.Printf("failed to read incoming TCP request: %s\n", err)
 			break
 		}
 

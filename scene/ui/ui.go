@@ -1,4 +1,5 @@
-package scene
+// Package ui implements graphical user interface components.
+package ui
 
 import (
 	"image/color"
@@ -39,23 +40,23 @@ func NewPadding(values ...float64) Padding {
 	return Padding{}
 }
 
-// UIContainer is a structure which draws child UI components
-type UIContainer struct {
+// Container is a structure which draws child UI components
+type Container struct {
 	buttons    []*Button
 	padding    Padding
 	boundsFunc func() pixel.Rect
 }
 
-// NewUIContainer creates and initialises a new UIContainer. The padding is applied to all children UI elements.
-func NewUIContainer(padding Padding, boundsFunc func() pixel.Rect) *UIContainer {
-	return &UIContainer{
+// NewContainer creates and initialises a new Container. The padding is applied to all children UI elements.
+func NewContainer(padding Padding, boundsFunc func() pixel.Rect) *Container {
+	return &Container{
 		padding:    padding,
 		boundsFunc: boundsFunc,
 	}
 }
 
-// AddButton adds a button to the UIContainer button stack.
-func (c *UIContainer) AddButton(btn ...*Button) {
+// AddButton adds a button to the Container button stack.
+func (c *Container) AddButton(btn ...*Button) {
 	// reverse button order before appending
 	for i := len(btn)/2 - 1; i >= 0; i-- {
 		opp := len(btn) - 1 - i
@@ -64,8 +65,8 @@ func (c *UIContainer) AddButton(btn ...*Button) {
 	c.buttons = append(btn, c.buttons...)
 }
 
-// Draw draws the UIContainer and its contents.
-func (c *UIContainer) Draw() {
+// Draw draws the Container and its contents.
+func (c *Container) Draw(win *pixelgl.Window) {
 	bounds := c.boundsFunc()
 
 	// represents the maximum area a button can fill (i.e. before padding has been applied)
@@ -80,7 +81,7 @@ func (c *UIContainer) Draw() {
 			Min: pixel.V(bounds.Min.X+padding.Left, bounds.Min.Y+yOffset+padding.Bottom),
 			Max: pixel.V(bounds.Min.X+btnWidth-padding.Right, bounds.Min.Y+yOffset+btnHeight-padding.Top),
 		}
-		btn.Draw(btnBounds)
+		btn.Draw(win, btnBounds)
 	}
 }
 
@@ -128,7 +129,7 @@ func (b *Button) Clicked() bool {
 }
 
 // Draw draws the button background and label label.
-func (b *Button) Draw(bounds pixel.Rect) {
+func (b *Button) Draw(win *pixelgl.Window, bounds pixel.Rect) {
 	bg := imdraw.New(nil)
 	label := text.New(pixel.ZV, basicFontAtlas)
 

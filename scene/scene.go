@@ -106,76 +106,6 @@ func Count() int {
 	return len(layerStack)
 }
 
-// MainMenu is the main menu layer which is first displayed upon game startup.
-type MainMenu struct {
-	uiContainer *UIContainer
-	createBtn   *Button
-	joinBtn     *Button
-	settingsBtn *Button
-}
-
-// NewMainMenu creates and initialises a new main menu layer.
-func NewMainMenu() *MainMenu {
-	// create container sized half the window height
-	container := NewUIContainer(NewPadding(5), func() pixel.Rect {
-		b := win.Bounds()
-		return b.Resized(b.Center(), pixel.V(b.Size().X, b.Size().Y*0.5))
-	})
-
-	menu := &MainMenu{
-		uiContainer: container,
-		createBtn:   NewButton("Create Game", colornames.Paleturquoise, colornames.White),
-		joinBtn:     NewButton("Join Game", colornames.Palegreen, colornames.White),
-		settingsBtn: NewButton("Settings", colornames.Palevioletred, colornames.White),
-	}
-
-	container.AddButton(menu.createBtn, menu.joinBtn, menu.settingsBtn)
-
-	return menu
-}
-
-// Update updates the main menu layer logic.
-func (m *MainMenu) Update(dt float64) {
-	switch {
-	case m.createBtn.Clicked():
-		// create a new game layer
-		gameLayer, err := NewGame(Server)
-		if err != nil {
-			fmt.Printf("failed to create game layer: %s\n", err)
-			return
-		}
-		// pop main menu and push game layer
-		Pop(Default)
-		Push(gameLayer)
-
-	case m.joinBtn.Clicked():
-		// create a new game layer
-		gameLayer, err := NewGame(Client)
-		if err != nil {
-			fmt.Printf("failed to create game layer: %s\n", err)
-			return
-		}
-		// pop main menu and push game layer
-		Pop(Default)
-		Push(gameLayer)
-
-	case m.settingsBtn.Clicked():
-		m.settingsBtn.ToggleEnabled()
-	}
-
-	if win.JustPressed(pixelgl.KeyEscape) {
-		win.SetClosed(true)
-	}
-}
-
-// Draw draws the main menu layer to the window.
-func (m *MainMenu) Draw() {
-	win.SetMatrix(pixel.IM)
-
-	win.Clear(colornames.White)
-	m.uiContainer.Draw()
-}
-
 // Game is the main interactive game functionality layer.
 type Game struct {
 	gameType     GameType
@@ -212,25 +142,31 @@ func NewGame(gameType GameType) (*Game, error) {
 		return nil, fmt.Errorf("failed to create player: %s", err)
 	}
 
-	// start server
-	switch gameType {
-	case Client:
-		if err := client.Start(9000); err != nil {
-			return nil, fmt.Errorf("client failed to start: %s", err)
-		}
-
-		client.Send(server.Message{
-			Type:  "register",
-			Value: userName,
-		})
-	case Server:
-		if err := server.Start(9000); err != nil {
+	// start server if
+	if gameType == Server {
+		if err := server.Start(":9000"); err != nil {
 			return nil, fmt.Errorf("server failed to start: %s", err)
 		}
-
-	default:
-		return nil, fmt.Errorf("unsupported game creation operation: %s", gameType)
 	}
+
+	// connect to server
+	if err := client.Start("localhost:9000"); err != nil {
+		return nil, fmt.Errorf("client failed to start: %s", err)
+	}
+
+	go func() {
+		for {
+			msg, ok := client.PollUpdate()
+			if !ok {
+				continue
+			}
+		}
+	}()
+
+	client.Send(server.Message{
+		Type:  "register",
+		Value: userName,
+	})
 
 	return &Game{
 		gameType:     gameType,
@@ -308,91 +244,4 @@ func (g *Game) Draw() {
 	for _, p := range g.otherPlayers {
 		p.Draw(win)
 	}
-}
-
-// OverlayMenu is the overlay menu layer which is drawn over the main game layer.
-type OverlayMenu struct {
-	uiContainer *UIContainer
-	resumeBtn   *Button
-	serverBtn   *Button
-	quitBtn     *Button
-}
-
-// NewOverlayMenu creates and initialises a new overlay menu layer.
-func NewOverlayMenu() *OverlayMenu {
-	// create container sized half the window height
-	container := NewUIContainer(NewPadding(5), func() pixel.Rect {
-		b := win.Bounds()
-		return b.Resized(b.Center(), pixel.V(b.Size().X, b.Size().Y*0.5))
-	})
-
-	menu := &OverlayMenu{
-		uiContainer: container,
-		resumeBtn:   NewButton("Resume", colornames.Paleturquoise, colornames.White),
-		serverBtn:   NewButton("Server Settings", colornames.Palegreen, colornames.White),
-		quitBtn:     NewButton("Quit Game", colornames.Palevioletred, colornames.White),
-	}
-	container.AddButton(menu.resumeBtn, menu.serverBtn, menu.quitBtn)
-
-	return menu
-}
-
-// Update updates the overlay menu layer logic.
-func (m *OverlayMenu) Update(dt float64) {
-	switch {
-	case m.resumeBtn.Clicked() || win.JustPressed(pixelgl.KeyEscape):
-		Pop(Default)
-	case m.serverBtn.Clicked():
-		m.serverBtn.ToggleEnabled()
-	case m.quitBtn.Clicked():
-		Pop(Quit)
-	}
-}
-
-// Draw draws the overlay menu layer to the window.
-func (m *OverlayMenu) Draw() {
-	win.SetMatrix(pixel.IM)
-	m.uiContainer.Draw()
-}
-
-type JoinGameMenu struct {
-	uiContainer *UIContainer
-	resumeBtn   *Button
-	serverBtn   *Button
-	quitBtn     *Button
-}
-
-func NewJoinGameMenu() *JoinGameMenu {
-	// create container sized half the window height
-	container := NewUIContainer(NewPadding(5), func() pixel.Rect {
-		b := win.Bounds()
-		return b.Resized(b.Center(), pixel.V(b.Size().X, b.Size().Y*0.5))
-	})
-
-	menu := &JoinGameMenu{
-		uiContainer: container,
-		resumeBtn:   NewButton("Resume", colornames.Paleturquoise, colornames.White),
-		serverBtn:   NewButton("Server Settings", colornames.Palegreen, colornames.White),
-		quitBtn:     NewButton("Quit Game", colornames.Palevioletred, colornames.White),
-	}
-	container.AddButton(menu.resumeBtn, menu.serverBtn, menu.quitBtn)
-
-	return menu
-}
-
-func (m *JoinGameMenu) Update(dt float64) {
-	switch {
-	case m.resumeBtn.Clicked() || win.JustPressed(pixelgl.KeyEscape):
-		Pop(Default)
-	case m.serverBtn.Clicked():
-		m.serverBtn.ToggleEnabled()
-	case m.quitBtn.Clicked():
-		Pop(Quit)
-	}
-}
-
-// Draw draws the overlay menu layer to the window.
-func (m *JoinGameMenu) Draw() {
-	win.SetMatrix(pixel.IM)
-	m.uiContainer.Draw()
 }
