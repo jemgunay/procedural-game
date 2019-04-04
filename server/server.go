@@ -117,6 +117,7 @@ func handleConn(conn net.Conn) {
 		case "pos":
 			fmt.Printf("new pos: %s\n", msg.Value)
 			// write pos msg right back to other clients
+			msg.Value = msg.Value + "|" + user.name
 			userDB.Broadcast(msg, user.uuid)
 
 		default:
@@ -183,8 +184,8 @@ func establishUser(msg Message, conn net.Conn) (user User) {
 
 	// broadcast to all players that user successfully joined
 	userDB.Broadcast(Message{
-		Type:  "announcement",
-		Value: user.name + " has joined the game!",
+		Type:  "user_joined",
+		Value: user.name,
 	}, user.uuid)
 
 	return

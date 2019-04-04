@@ -12,11 +12,13 @@ import (
 
 // Player represents a drawable client player.
 type Player struct {
-	name        string
-	Pos         pixel.Vec
-	speed       float64
-	orientation float64
-	sprite      *pixel.Sprite
+	Name            string
+	Pos             pixel.Vec
+	PrevPos         pixel.Vec
+	speed           float64
+	Orientation     float64
+	PrevOrientation float64
+	sprite          *pixel.Sprite
 }
 
 // New creates and initialises a new player.
@@ -28,17 +30,17 @@ func New(name string) (*Player, error) {
 	}
 
 	return &Player{
-		name:        name,
+		Name:        name,
 		Pos:         pixel.ZV,
 		speed:       500.0,
-		orientation: 0.0,
+		Orientation: 0.0,
 		sprite:      sprite,
 	}, nil
 }
 
 // Draw draws a player onto a window.
 func (p *Player) Draw(win *pixelgl.Window) {
-	p.sprite.Draw(win, pixel.IM.Moved(p.Pos).Rotated(p.Pos, p.orientation))
+	p.sprite.Draw(win, pixel.IM.Moved(p.Pos).Rotated(p.Pos, p.Orientation))
 }
 
 // Up moves the player upwards.
@@ -68,5 +70,5 @@ func (p *Player) MoveTo(target pixel.Vec) {
 
 // PointTo rotates the player to face the specified target.
 func (p *Player) PointTo(target pixel.Vec) {
-	p.orientation = math.Atan2(target.Y-p.Pos.Y, target.X-p.Pos.X)
+	p.Orientation = math.Atan2(target.Y-p.Pos.Y, target.X-p.Pos.X)
 }
