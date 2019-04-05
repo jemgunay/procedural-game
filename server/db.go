@@ -134,11 +134,6 @@ func (d *UserDB) Connect(uuid string, conn net.Conn) (User, error) {
 
 // Disconnect clears the reference to a user's connection.
 func (d *UserDB) Disconnect(user User) {
-	// inform client that disconnect has been acknowledged
-	user.Send(Message{
-		Type: "disconnected",
-	})
-
 	// clear connection reference before updating DB
 	user.conn = nil
 	d.Lock()
@@ -149,6 +144,6 @@ func (d *UserDB) Disconnect(user User) {
 	// broadcast user leaving message to all remaining connected users
 	d.Broadcast(Message{
 		Type:  "disconnect",
-		Value: user.name + " has left the game!",
+		Value: user.name,
 	}, user.uuid)
 }

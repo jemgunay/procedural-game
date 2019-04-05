@@ -2,12 +2,12 @@
 package player
 
 import (
+	"errors"
 	"math"
 	"sync"
 
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
-
 	"github.com/jemgunay/game/file"
 )
 
@@ -22,23 +22,6 @@ type Player struct {
 	sprite          *pixel.Sprite
 
 	sync.RWMutex
-}
-
-// New creates and initialises a new player.
-func New(name string) (*Player, error) {
-	// create sprite
-	sprite, err := file.CreateSprite(file.Player)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Player{
-		Name:        name,
-		pos:         pixel.ZV,
-		speed:       500.0,
-		orientation: 0.0,
-		sprite:      sprite,
-	}, nil
 }
 
 // Draw draws a player onto a window.
@@ -119,3 +102,72 @@ func (p *Player) HasMoved() bool {
 	p.RUnlock()
 	return moved
 }
+
+// Store is a player store which can be concurrently accessed safely.
+type Store struct {
+	players map[string]*Player
+	sync.RWMutex
+}
+
+// NewStore creates and initialises a new player store.
+func NewStore() *Store {
+	return &Store{
+		players: make(map[string]*Player),
+	}
+}
+
+// Find returns the player which corresponds with the specified username.
+func (s *Store) Find(username string) (*Player, error) {
+	s.RLock()
+	defer s.RUnlock()
+	p, ok := s.players[username]
+	if !ok {
+		return nil, errors.New("player with that username does not exist")
+	}
+	return p, nil
+}
+
+// Add takes a username, creates a new corresponding user and adds it to the player store.
+func (s *Store) Add(username string) (*Player, error) {
+	s.Lock()
+	defer s.Unlock()
+	// ensure player does not already exist in store
+	if _, ok := s.players[username]; ok {
+		return nil, errors.New("player with that username already exists")
+	}
+
+	// create sprite
+	sprite, err := file.CreateSprite(file.Player)
+	if err != nil {
+		return nil, err
+	}
+
+	newPlayer := &Player{
+		Name:        username,
+		pos:         pixel.ZV,
+		speed:       500.0,
+		orientation: 0.0,
+		sprite:      sprite,
+	}
+
+	s.players[username] = newPlayer
+	return newPlayer, nil
+}
+
+// Remove removes a player from the player store.
+func (s *Store) Remove(username string) {
+	s.Lock()
+	delete(s.players, username)
+	s.Unlock()
+}
+
+// Draw draws each of the players in the player store.
+func (s *Store) Draw(win *pixelgl.Window) {
+	s.RLock()
+	for _, p := range s.players {
+		p.Draw(win)
+	}
+	s.RUnlock()
+}
+
+

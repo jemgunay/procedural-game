@@ -24,4 +24,5 @@ go build && ./client
 - Cars.
 - Weapons (and ability for players to die).
 - TOML config.
+- Store/read server state to/from disk.
 - FPS counter enable/disable.

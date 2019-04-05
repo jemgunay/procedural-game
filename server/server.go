@@ -99,8 +99,6 @@ func handleConn(conn net.Conn) {
 			continue
 		}
 
-		fmt.Printf("> [Server] Incoming TCP request:\n%v\n", msg)
-
 		// require a successful register/connect before allowing access to other request instruction types
 		if user.conn == nil {
 			user = establishUser(msg, conn)
@@ -116,7 +114,6 @@ func handleConn(conn net.Conn) {
 			user = User{}
 
 		case "pos":
-			fmt.Printf("new pos: %s\n", msg.Value)
 			// write pos msg right back to other clients
 			user.posRotStr = msg.Value
 			userDB.Update(user)

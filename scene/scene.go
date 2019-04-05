@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/faiface/pixel"
@@ -115,7 +114,7 @@ type Game struct {
 	gameType   GameType
 	tileGrid   *world.TileGrid
 	mainPlayer *player.Player
-	players    PlayerStore
+	players    *player.Store
 
 	cam           pixel.Matrix
 	camScale      float64
@@ -131,50 +130,11 @@ const (
 	Server GameType = "server"
 )
 
-type PlayerStore struct {
-	players map[string]*player.Player
-	sync.RWMutex
-}
-
-func (s *PlayerStore) Find(username string) (*player.Player, error) {
-	s.RLock()
-	defer s.RUnlock()
-	p, ok := s.players[username]
-	if !ok {
-		return nil, errors.New("player with that username does not exist")
-	}
-	return p, nil
-}
-
-func (s *PlayerStore) Add(username string) (*player.Player, error) {
-	s.Lock()
-	defer s.Unlock()
-	if _, ok := s.players[username]; ok {
-		return nil, errors.New("player with that username already exists")
-	}
-
-	newPlayer, err := player.New(username)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create new player: %s", err)
-	}
-
-	s.players[username] = newPlayer
-	return newPlayer, nil
-}
-
-func (s *PlayerStore) Draw() {
-	s.RLock()
-	for _, p := range s.players {
-		p.Draw(win)
-	}
-	s.RUnlock()
-}
-
 // NewGame creates and initialises a new Game layer.
-func NewGame(gameType GameType) (*Game, error) {
+func NewGame(gameType GameType) (game *Game, err error) {
 	// generate world
 	tileGrid := world.NewTileGrid()
-	if err := tileGrid.GenerateChunk(); err != nil {
+	if err = tileGrid.GenerateChunk(); err != nil {
 		return nil, fmt.Errorf("failed to generate world: %s", err)
 	}
 
@@ -183,7 +143,7 @@ func NewGame(gameType GameType) (*Game, error) {
 
 	// start server if
 	if gameType == Server {
-		if err := server.Start(":9000"); err != nil {
+		if err = server.Start(":9000"); err != nil {
 			return nil, fmt.Errorf("server failed to start: %s", err)
 		}
 		userName = "jemgunay"
@@ -193,7 +153,7 @@ func NewGame(gameType GameType) (*Game, error) {
 	}
 
 	// connect to server
-	if err := client.Start("localhost:9000"); err != nil {
+	if err = client.Start("localhost:9000"); err != nil {
 		return nil, fmt.Errorf("client failed to start: %s", err)
 	}
 
@@ -216,73 +176,84 @@ func NewGame(gameType GameType) (*Game, error) {
 		break
 	}
 
-	g := &Game{
+	// create new game instance
+	game = &Game{
 		gameType: gameType,
 		tileGrid: tileGrid,
-		players: PlayerStore{
-			players: make(map[string]*player.Player),
-		},
+		players:  player.NewStore(),
 		camScale: 1.0,
 	}
 
-	p, err := g.players.Add(userName)
+	// create main player
+	game.mainPlayer, err = game.players.Add(userName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create player: %s\n", err)
 	}
-	p.SetPos(pixel.V(3000, 3000))
-	g.mainPlayer = p
+	game.mainPlayer.SetPos(pixel.V(4000, 4000))
 
-	// start main
-	go func() {
-		for {
-			msg := client.Poll()
-			switch msg.Type {
-			case "user_joined":
-				if _, err := g.players.Add(msg.Value); err != nil {
-					break
-				}
+	// receive and process incoming requests from the server
+	go game.ProcessServerUpdates()
 
-			case "pos":
-				//fmt.Printf("pos request: %s\n", msg.Value)
-				name, pos, rot, err := splitPosReq(msg.Value)
+	return
+}
+
+// ProcessServerUpdates polls the client for incoming requests from the server and applies the corresponding client/
+// player updates.
+func (g *Game) ProcessServerUpdates() {
+	for {
+		switch msg := client.Poll(); msg.Type {
+		// new player joined the game
+		case "user_joined":
+			fmt.Println(msg.Value + " joined the game!")
+			if _, err := g.players.Add(msg.Value); err != nil {
+				break
+			}
+
+		// initialise world and already existing players after joining a new game
+		case "init_world":
+			fmt.Printf("init world request: %s\n", msg.Value)
+			items := strings.Split(msg.Value, "/")
+			for _, item := range items {
+				name, pos, rot, err := splitPosReq(item)
 				if err != nil {
 					fmt.Printf("failed to split pos request: %s", err)
 					break
 				}
 
-				p, err := g.players.Find(name)
+				np, err := g.players.Add(name)
 				if err != nil {
-					fmt.Printf("player doesn't exist: %s\n", err)
+					fmt.Printf("failed to add player \"%s\": %s\n", name, err)
 					break
 				}
-				p.SetPos(pos)
-				p.SetOrientation(rot)
-
-			case "init_world":
-				fmt.Printf("init world request: %s\n", msg.Value)
-				items := strings.Split(msg.Value, "/")
-				for _, item := range items {
-					name, pos, rot, err := splitPosReq(item)
-					if err != nil {
-						fmt.Printf("failed to split pos request: %s", err)
-						break
-					}
-
-					np, err := g.players.Add(name)
-					if err != nil {
-						fmt.Printf("failed to add player \"%s\": %s\n", name, err)
-						break
-					}
-					np.SetPos(pos)
-					np.SetOrientation(rot)
-				}
+				np.SetPos(pos)
+				np.SetOrientation(rot)
 			}
-		}
-	}()
 
-	return g, nil
+		// update a player's position and orientation
+		case "pos":
+			name, pos, rot, err := splitPosReq(msg.Value)
+			if err != nil {
+				fmt.Printf("failed to split pos request: %s", err)
+				break
+			}
+
+			p, err := g.players.Find(name)
+			if err != nil {
+				fmt.Printf("player doesn't exist: %s\n", err)
+				break
+			}
+			p.SetPos(pos)
+			p.SetOrientation(rot)
+
+		// remove a player from the game
+		case "disconnect":
+			fmt.Println(msg.Value + " left the game!")
+			g.players.Remove(msg.Value)
+		}
+	}
 }
 
+// process a "pos" message from the server into its separate components
 func splitPosReq(val string) (name string, pos pixel.Vec, rot float64, err error) {
 	components := strings.Split(val, "|")
 	if len(components) != 4 {
@@ -382,5 +353,5 @@ func (g *Game) Draw() {
 	// draw tiles
 	g.tileGrid.Draw(win)
 	// draw players
-	g.players.Draw()
+	g.players.Draw(win)
 }
