@@ -14,6 +14,7 @@ import (
 )
 
 const (
+	// just grater than 200 to overlap, preventing stitching glitch
 	tileSize  = 201
 	chunkSize = 50
 
@@ -107,6 +108,7 @@ func (g *TileGrid) GenerateChunk() error {
 	// generate perlin noise map
 	for x := 0; x < chunkSize; x++ {
 		for y := 0; y < chunkSize; y++ {
+			// add one to scale z between 0 and 2
 			z := g.noiseGenerator.Noise2D(float64(x)/10, float64(y)/10) + 1
 
 			if z < minZ {
@@ -118,27 +120,29 @@ func (g *TileGrid) GenerateChunk() error {
 
 			var (
 				target   file.ImageFile
-				waterMax = 0.7
+				waterMax = 0.66
+				sandMax = 0.8
 				grassMin = 1.2
 			)
 			if z < waterMax {
 				target = file.Water
-			} else if z >= waterMax && z < grassMin {
+			} else if z >= waterMax && z < sandMax {
+				target = file.Sand
+			} else if z >= sandMax && z < grassMin {
 				target = file.Grass
 			} else {
 				target = file.Grass
 			}
 
-			// map z (waterMax > grassMin) to mask colour (0-0.4)
-			outMin, outMax := 0.2, 0.0
-			maskVal := 1 - (z-waterMax)*(outMax-outMin)/(grassMin-waterMax) + outMin
+			// shade grass tiles based on height
+			outMin, outMax := 1.0, 0.9
+			maskVal := (z-waterMax)*(outMax-outMin)/(grassMin-waterMax) + outMin
 			if err := g.CreateTile(target, x, y, pixel.RGB(maskVal, maskVal, maskVal)); err != nil {
 				return fmt.Errorf("failed to create tile: %s", err)
 			}
 		}
 	}
 
-	// determine road tiles which
 	/*for _, tile := range g.tiles {
 		if tile.fileName != file.RoadNESW {
 			continue

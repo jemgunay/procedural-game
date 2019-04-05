@@ -12,10 +12,7 @@ go build && ./client
 
 ## TODO
 
-- Colourise grass tiles based on height/z, i.e. lighter/darker.
-- Hook server up to client via event channel.
 - UI for starting/stopping/joining server.
-- Add sand around water.
 - Procedural road generation:
     - Use perlin noise to pick random points on map.
     - Join procedurally selected points with straight roads.
