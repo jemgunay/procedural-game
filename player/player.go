@@ -3,6 +3,7 @@ package player
 
 import (
 	"math"
+	"sync"
 
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
@@ -13,12 +14,14 @@ import (
 // Player represents a drawable client player.
 type Player struct {
 	Name            string
-	Pos             pixel.Vec
-	PrevPos         pixel.Vec
+	pos             pixel.Vec
+	prevPos         pixel.Vec
 	speed           float64
-	Orientation     float64
-	PrevOrientation float64
+	orientation     float64
+	prevOrientation float64
 	sprite          *pixel.Sprite
+
+	sync.RWMutex
 }
 
 // New creates and initialises a new player.
@@ -31,44 +34,88 @@ func New(name string) (*Player, error) {
 
 	return &Player{
 		Name:        name,
-		Pos:         pixel.ZV,
+		pos:         pixel.ZV,
 		speed:       500.0,
-		Orientation: 0.0,
+		orientation: 0.0,
 		sprite:      sprite,
 	}, nil
 }
 
 // Draw draws a player onto a window.
 func (p *Player) Draw(win *pixelgl.Window) {
-	p.sprite.Draw(win, pixel.IM.Moved(p.Pos).Rotated(p.Pos, p.Orientation))
+	p.RLock()
+	p.sprite.Draw(win, pixel.IM.Moved(p.pos).Rotated(p.pos, p.orientation))
+	p.RUnlock()
 }
 
 // Up moves the player upwards.
 func (p *Player) Up(dt float64) {
-	p.Pos.Y += p.speed * dt
+	p.Lock()
+	p.pos.Y += p.speed * dt
+	p.Unlock()
 }
 
 // Down moves the player downwards.
 func (p *Player) Down(dt float64) {
-	p.Pos.Y -= p.speed * dt
+	p.Lock()
+	p.pos.Y -= p.speed * dt
+	p.Unlock()
 }
 
 // Left moves the player leftwards.
 func (p *Player) Left(dt float64) {
-	p.Pos.X -= p.speed * dt
+	p.Lock()
+	p.pos.X -= p.speed * dt
+	p.Unlock()
 }
 
 // Right moves the player rightwards.
 func (p *Player) Right(dt float64) {
-	p.Pos.X += p.speed * dt
+	p.Lock()
+	p.pos.X += p.speed * dt
+	p.Unlock()
 }
 
-// MoveTo moves the player to the specified coordinates.
-func (p *Player) MoveTo(target pixel.Vec) {
-	p.Pos = target
+// Pos retrieves the player position.
+func (p *Player) Pos() pixel.Vec {
+	p.Lock()
+	pos := p.pos
+	p.Unlock()
+	return pos
+}
+
+// SetPos moves the player to the specified coordinates.
+func (p *Player) SetPos(target pixel.Vec) {
+	p.Lock()
+	p.pos = target
+	p.Unlock()
+}
+
+// Orientation gets the player's orientation.
+func (p *Player) Orientation() float64 {
+	p.Lock()
+	rot := p.orientation
+	p.Unlock()
+	return rot
+}
+
+// SetOrientation sets the player's orientation.
+func (p *Player) SetOrientation(target float64) {
+	p.Lock()
+	p.orientation = target
+	p.Unlock()
 }
 
 // PointTo rotates the player to face the specified target.
 func (p *Player) PointTo(target pixel.Vec) {
-	p.Orientation = math.Atan2(target.Y-p.Pos.Y, target.X-p.Pos.X)
+	p.Lock()
+	p.orientation = math.Atan2(target.Y-p.pos.Y, target.X-p.pos.X)
+	p.Unlock()
+}
+
+func (p *Player) HasMoved() bool {
+	p.RLock()
+	moved := p.pos != p.prevPos && p.orientation != p.prevOrientation
+	p.RUnlock()
+	return moved
 }

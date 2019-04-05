@@ -114,8 +114,8 @@ func Count() int {
 type Game struct {
 	gameType   GameType
 	tileGrid   *world.TileGrid
-	playerName string
-	players PlayerStore
+	mainPlayer *player.Player
+	players    PlayerStore
 
 	cam           pixel.Matrix
 	camScale      float64
@@ -136,30 +136,30 @@ type PlayerStore struct {
 	sync.RWMutex
 }
 
-func (s *PlayerStore) GetCopy(username string) player.Player {
+func (s *PlayerStore) Find(username string) (*player.Player, error) {
 	s.RLock()
 	defer s.RUnlock()
 	p, ok := s.players[username]
 	if !ok {
-		return player.Player{}
+		return nil, errors.New("player with that username does not exist")
 	}
-	return *p
+	return p, nil
 }
 
-func (s *PlayerStore) Add(username string) error {
+func (s *PlayerStore) Add(username string) (*player.Player, error) {
 	s.Lock()
 	defer s.Unlock()
 	if _, ok := s.players[username]; ok {
-		return errors.New("player with that username already exists")
+		return nil, errors.New("player with that username already exists")
 	}
 
 	newPlayer, err := player.New(username)
 	if err != nil {
-		return fmt.Errorf("failed to create new player: %s", err)
+		return nil, fmt.Errorf("failed to create new player: %s", err)
 	}
 
 	s.players[username] = newPlayer
-	return nil
+	return newPlayer, nil
 }
 
 func (s *PlayerStore) Draw() {
@@ -170,6 +170,7 @@ func (s *PlayerStore) Draw() {
 	s.RUnlock()
 }
 
+/*
 func (s *PlayerStore) Execute(username string, f func(p *player.Player)) error {
 	s.Lock()
 	defer s.Unlock()
@@ -179,7 +180,7 @@ func (s *PlayerStore) Execute(username string, f func(p *player.Player)) error {
 	}
 	f(pl)
 	return nil
-}
+}*/
 
 // NewGame creates and initialises a new Game layer.
 func NewGame(gameType GameType) (*Game, error) {
@@ -228,14 +229,19 @@ func NewGame(gameType GameType) (*Game, error) {
 	}
 
 	g := &Game{
-		gameType:   gameType,
-		tileGrid:   tileGrid,
-		playerName: userName,
+		gameType: gameType,
+		tileGrid: tileGrid,
 		players: PlayerStore{
 			players: make(map[string]*player.Player),
 		},
 		camScale: 1.0,
 	}
+
+	p, err := g.players.Add(userName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create player: %s\n", err)
+	}
+	g.mainPlayer = p
 
 	// start main
 	go func() {
@@ -243,7 +249,7 @@ func NewGame(gameType GameType) (*Game, error) {
 			msg := client.Poll()
 			switch msg.Type {
 			case "user_joined":
-				if err := g.players.Add(msg.Value); err != nil {
+				if _, err := g.players.Add(msg.Value); err != nil {
 					break
 				}
 
@@ -270,14 +276,8 @@ func NewGame(gameType GameType) (*Game, error) {
 					break
 				}
 
-				f := func(p *player.Player) {
-					p.Pos = pixel.V(x, y)
-					p.Orientation = rot
-				}
-				if err = g.players.Execute(components[4], f); err != nil {
-					fmt.Printf("failed to update player pos: %s\n", err)
-					break
-				}
+				g.mainPlayer.SetPos(pixel.V(x, y))
+				g.mainPlayer.SetOrientation(rot)
 			}
 		}
 	}()
@@ -303,28 +303,16 @@ func (g *Game) Update(dt float64) {
 
 	// handle keyboard input
 	if win.Pressed(pixelgl.KeyW) {
-		//g.mainPlayer.Up(dt)
-		g.players.Execute(g.playerName, func(p *player.Player) {
-			p.Up(dt)
-		})
+		g.mainPlayer.Up(dt)
 	}
 	if win.Pressed(pixelgl.KeyS) {
-		//g.mainPlayer.Down(dt)
-		g.players.Execute(g.playerName, func(p *player.Player) {
-			p.Down(dt)
-		})
+		g.mainPlayer.Down(dt)
 	}
 	if win.Pressed(pixelgl.KeyA) {
-		//g.mainPlayer.Left(dt)
-		g.players.Execute(g.playerName, func(p *player.Player) {
-			p.Left(dt)
-		})
+		g.mainPlayer.Left(dt)
 	}
 	if win.Pressed(pixelgl.KeyD) {
-		//g.mainPlayer.Right(dt)
-		g.players.Execute(g.playerName, func(p *player.Player) {
-			p.Right(dt)
-		})
+		g.mainPlayer.Right(dt)
 	}
 	if win.Pressed(pixelgl.KeyR) {
 		if g.camScale < 2 {
@@ -345,19 +333,16 @@ func (g *Game) Update(dt float64) {
 	if win.MousePosition() != g.prevMousePos {
 		// point mainPlayer at mouse
 		mousePos := g.cam.Unproject(win.MousePosition())
-		//g.mainPlayer.PointTo(mousePos)
-		g.players.Execute(g.playerName, func(p *player.Player) {
-			p.PointTo(mousePos)
-		})
+		g.mainPlayer.PointTo(mousePos)
 	}
 	g.prevMousePos = win.MousePosition()
 
 	// send pos & orientation update to server
-	mainPlayer := g.players.GetCopy(g.playerName)
-	if mainPlayer.Pos != mainPlayer.PrevPos && mainPlayer.Orientation != mainPlayer.PrevOrientation {
+	if g.mainPlayer.HasMoved() {
+		pos := g.mainPlayer.Pos()
 		client.Send(server.Message{
 			Type:  "pos",
-			Value: fmt.Sprintf("%f|%f|%f", mainPlayer.Pos.X, mainPlayer.Pos.Y, mainPlayer.Orientation),
+			Value: fmt.Sprintf("%f|%f|%f", pos.X, pos.Y, g.mainPlayer.Orientation()),
 		})
 	}
 }
@@ -365,8 +350,8 @@ func (g *Game) Update(dt float64) {
 // Draw draws the game layer to the window.
 func (g *Game) Draw() {
 	// window camera
-	mainPlayer := g.players.GetCopy(g.playerName)
-	g.cam = pixel.IM.Scaled(mainPlayer.Pos, g.camScale).Moved(win.Bounds().Center().Sub(mainPlayer.Pos))
+	pos := g.mainPlayer.Pos()
+	g.cam = pixel.IM.Scaled(pos, g.camScale).Moved(win.Bounds().Center().Sub(pos))
 	win.SetMatrix(g.cam)
 
 	win.Clear(colornames.Greenyellow)
