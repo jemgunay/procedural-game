@@ -29,9 +29,10 @@ const (
 
 // Tile represents a single tile sprite and its corresponding properties.
 type Tile struct {
-	fileName file.ImageFile
-	sprite   *pixel.Sprite
-	visible  bool
+	fileName   file.ImageFile
+	sprite     *pixel.Sprite
+	colourMask pixel.RGBA
+	visible    bool
 
 	// the grid co-ordinate representation of the tile position
 	gridPos pixel.Vec
@@ -55,7 +56,7 @@ func NewTileGrid() *TileGrid {
 }
 
 // CreateTile creates a new tile and inserts it into the tile grid given the tile image and x/y grid co-ordinates.
-func (g *TileGrid) CreateTile(imageFile file.ImageFile, x, y int) error {
+func (g *TileGrid) CreateTile(imageFile file.ImageFile, x, y int, mask pixel.RGBA) error {
 	// create sprite
 	sprite, err := file.CreateSprite(imageFile)
 	if err != nil {
@@ -65,11 +66,12 @@ func (g *TileGrid) CreateTile(imageFile file.ImageFile, x, y int) error {
 	// create new tile
 	absPos := pixel.V(float64(x)*tileSize, float64(y)*tileSize)
 	newTile := &Tile{
-		fileName: imageFile,
-		sprite:   sprite,
-		visible:  true,
-		gridPos:  pixel.V(float64(x), float64(y)),
-		absPos:   pixel.IM.Scaled(pixel.V(float64(x), float64(y)), 2.0).Moved(absPos),
+		fileName:   imageFile,
+		sprite:     sprite,
+		colourMask: mask,
+		visible:    true,
+		gridPos:    pixel.V(float64(x), float64(y)),
+		absPos:     pixel.IM.Scaled(pixel.V(float64(x), float64(y)), 2.0).Moved(absPos),
 	}
 
 	// insert tile into tile grid
@@ -94,7 +96,7 @@ func (g *TileGrid) Draw(win *pixelgl.Window) {
 		if !tile.visible {
 			continue
 		}
-		tile.sprite.Draw(win, tile.absPos)
+		tile.sprite.DrawColorMask(win, tile.absPos, tile.colourMask)
 	}
 }
 
@@ -124,10 +126,13 @@ func (g *TileGrid) GenerateChunk() error {
 			} else if z >= waterMax && z < grassMin {
 				target = file.Grass
 			} else {
-				target = file.RoadNESW
+				target = file.Grass
 			}
 
-			if err := g.CreateTile(target, x, y); err != nil {
+			// map z (waterMax > grassMin) to mask colour (0-0.4)
+			outMin, outMax := 0.2, 0.0
+			maskVal := 1 - (z-waterMax)*(outMax-outMin)/(grassMin-waterMax) + outMin
+			if err := g.CreateTile(target, x, y, pixel.RGB(maskVal, maskVal, maskVal)); err != nil {
 				return fmt.Errorf("failed to create tile: %s", err)
 			}
 		}

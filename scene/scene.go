@@ -156,7 +156,7 @@ func NewGame(gameType GameType) (*Game, error) {
 
 	go func() {
 		for {
-			msg, ok := client.PollUpdate()
+			_, ok := client.PollUpdate()
 			if !ok {
 				continue
 			}
