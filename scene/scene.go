@@ -170,18 +170,6 @@ func (s *PlayerStore) Draw() {
 	s.RUnlock()
 }
 
-/*
-func (s *PlayerStore) Execute(username string, f func(p *player.Player)) error {
-	s.Lock()
-	defer s.Unlock()
-	pl, ok := s.players[username]
-	if ok {
-		return errors.New("player not found")
-	}
-	f(pl)
-	return nil
-}*/
-
 // NewGame creates and initialises a new Game layer.
 func NewGame(gameType GameType) (*Game, error) {
 	// generate world
@@ -241,6 +229,7 @@ func NewGame(gameType GameType) (*Game, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create player: %s\n", err)
 	}
+	p.SetPos(pixel.V(3000, 3000))
 	g.mainPlayer = p
 
 	// start main
@@ -254,35 +243,70 @@ func NewGame(gameType GameType) (*Game, error) {
 				}
 
 			case "pos":
-				fmt.Printf("pos request: %s\n", msg.Value)
-				components := strings.Split(msg.Value, "|")
-				if len(components) != 4 {
-					fmt.Println("incorrect pos component count")
-					break
-				}
-				x, err := strconv.ParseFloat(components[0], 64)
+				//fmt.Printf("pos request: %s\n", msg.Value)
+				name, pos, rot, err := splitPosReq(msg.Value)
 				if err != nil {
-					fmt.Printf("failed to parse X: %s\n", err)
-					break
-				}
-				y, err := strconv.ParseFloat(components[1], 64)
-				if err != nil {
-					fmt.Printf("failed to parse Y: %s\n", err)
-					break
-				}
-				rot, err := strconv.ParseFloat(components[2], 64)
-				if err != nil {
-					fmt.Printf("failed to parse rot: %s\n", err)
+					fmt.Printf("failed to split pos request: %s", err)
 					break
 				}
 
-				g.mainPlayer.SetPos(pixel.V(x, y))
-				g.mainPlayer.SetOrientation(rot)
+				p, err := g.players.Find(name)
+				if err != nil {
+					fmt.Printf("player doesn't exist: %s\n", err)
+					break
+				}
+				p.SetPos(pos)
+				p.SetOrientation(rot)
+
+			case "init_world":
+				fmt.Printf("init world request: %s\n", msg.Value)
+				items := strings.Split(msg.Value, "/")
+				for _, item := range items {
+					name, pos, rot, err := splitPosReq(item)
+					if err != nil {
+						fmt.Printf("failed to split pos request: %s", err)
+						break
+					}
+
+					np, err := g.players.Add(name)
+					if err != nil {
+						fmt.Printf("failed to add player \"%s\": %s\n", name, err)
+						break
+					}
+					np.SetPos(pos)
+					np.SetOrientation(rot)
+				}
 			}
 		}
 	}()
 
 	return g, nil
+}
+
+func splitPosReq(val string) (name string, pos pixel.Vec, rot float64, err error) {
+	components := strings.Split(val, "|")
+	if len(components) != 4 {
+		err = fmt.Errorf("incorrect pos component count")
+		return
+	}
+	x, err := strconv.ParseFloat(components[1], 64)
+	if err != nil {
+		err = fmt.Errorf("failed to parse X: %s\n", err)
+		return
+	}
+	y, err := strconv.ParseFloat(components[2], 64)
+	if err != nil {
+		err = fmt.Errorf("failed to parse Y: %s\n", err)
+		return
+	}
+	rot, err = strconv.ParseFloat(components[3], 64)
+	if err != nil {
+		err = fmt.Errorf("failed to parse rot: %s\n", err)
+		return
+	}
+	name = components[0]
+	pos = pixel.V(x, y)
+	return
 }
 
 // Update updates the game layer logic.

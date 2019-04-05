@@ -66,7 +66,6 @@ func Poll() server.Message {
 
 // Send marshals and writes a message to a server.
 func Send(msg server.Message) {
-	fmt.Println("starting send operation")
 	rawMsg, err := json.Marshal(msg)
 	if err != nil {
 		fmt.Printf("failed to process outbound request: %s:\n%v\n", err, msg)
@@ -76,5 +75,4 @@ func Send(msg server.Message) {
 	if _, err := conn.Write(append(rawMsg, '\n')); err != nil {
 		fmt.Printf("failed to write \"%s\" to %s: %s\n", string(rawMsg), conn.RemoteAddr(), err)
 	}
-	fmt.Println("ending send operation")
 }

@@ -17,6 +17,7 @@ type User struct {
 	// a uuid is returned to a new new client which is used as a validation token during future connections
 	uuid    string
 	blocked bool
+	posRotStr string
 }
 
 // Send marshals and writes a message to a user's client.

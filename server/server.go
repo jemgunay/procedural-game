@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 )
 
 var (
@@ -117,7 +118,9 @@ func handleConn(conn net.Conn) {
 		case "pos":
 			fmt.Printf("new pos: %s\n", msg.Value)
 			// write pos msg right back to other clients
-			msg.Value = msg.Value + "|" + user.name
+			user.posRotStr = msg.Value
+			userDB.Update(user)
+			msg.Value = user.name + "|" + msg.Value
 			userDB.Broadcast(msg, user.uuid)
 
 		default:
@@ -187,6 +190,24 @@ func establishUser(msg Message, conn net.Conn) (user User) {
 		Type:  "user_joined",
 		Value: user.name,
 	}, user.uuid)
+
+	// send world update to player
+	var data strings.Builder
+	for _, u := range userDB.users {
+		if u.name == user.name {
+			continue
+		}
+		if data.String() != "" {
+			data.WriteString("/")
+		}
+		data.WriteString(u.name + "|" + u.posRotStr)
+	}
+	if data.String() != "" {
+		user.Send(Message{
+			Type:  "init_world",
+			Value: data.String(),
+		})
+	}
 
 	return
 }
