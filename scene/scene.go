@@ -123,8 +123,10 @@ type Game struct {
 	overlayResult chan LayerResult
 }
 
+// GameType si sued to differentiate between a client and server game instance.
 type GameType string
 
+// Game type constants.
 const (
 	Client GameType = "client"
 	Server GameType = "server"
@@ -220,6 +222,7 @@ func (g *Game) ProcessServerUpdates() {
 					break
 				}
 
+				// add new player
 				np, err := g.players.Add(name)
 				if err != nil {
 					fmt.Printf("failed to add player \"%s\": %s\n", name, err)
@@ -237,6 +240,7 @@ func (g *Game) ProcessServerUpdates() {
 				break
 			}
 
+			// find new player
 			p, err := g.players.Find(name)
 			if err != nil {
 				fmt.Printf("player doesn't exist: %s\n", err)

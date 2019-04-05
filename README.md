@@ -1,4 +1,4 @@
-# Game Test
+# 2D Multiplayer Game Demo
 
 This is a multiplayer game test with the pixel game engine package.
 

@@ -96,6 +96,7 @@ func (p *Player) PointTo(target pixel.Vec) {
 	p.Unlock()
 }
 
+// HasMoved determines if the player has moved position or changed orientation.
 func (p *Player) HasMoved() bool {
 	p.RLock()
 	moved := p.pos != p.prevPos && p.orientation != p.prevOrientation
