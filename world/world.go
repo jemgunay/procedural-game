@@ -31,6 +31,7 @@ type Tile struct {
 type TileGrid struct {
 	tiles      map[string]*Tile
 	terrainGen *perlin.Perlin
+	roadGen    *perlin.Perlin
 	sync.RWMutex
 }
 
@@ -52,6 +53,7 @@ func NewTileGrid(seed int64) *TileGrid {
 	return &TileGrid{
 		tiles:      make(map[string]*Tile),
 		terrainGen: perlin.NewPerlinRandSource(terrainPerlinAlpha, terrainPerlinBeta, terrainPerlinIterations, rand.NewSource(seed)),
+		roadGen:    perlin.NewPerlinRandSource(1.0, terrainPerlinBeta, terrainPerlinIterations, rand.NewSource(seed)),
 	}
 }
 
@@ -108,7 +110,7 @@ func (g *TileGrid) GenerateChunk() error {
 	for x := 0; x < chunkSize; x++ {
 		for y := 0; y < chunkSize; y++ {
 			// add one to scale z between 0 and 2
-			z := g.terrainGen.Noise2D(float64(x)/10, float64(y)/10) + 1
+			z := g.terrainGen.Noise2D(float64(x)/11, float64(y)/11) + 1
 
 			if z < minZ {
 				minZ = z
@@ -118,24 +120,29 @@ func (g *TileGrid) GenerateChunk() error {
 			}
 
 			var (
-				target   file.ImageFile
-				mask     color.Color
-				waterMax = 0.66
-				sandMax  = 0.8
+				tileImage file.ImageFile
+				mask      color.Color
+				waterMax  = 0.66
+				sandMax   = 0.8
 			)
 			if z < waterMax {
-				target = file.Water
+				tileImage = file.Water
 			} else if z >= waterMax && z < sandMax {
-				target = file.Sand
+				tileImage = file.Sand
 			} else if z >= sandMax {
-				target = file.Grass
+				tileImage = file.Grass
 				// shade grass tiles based on height
 				grassMin, outMin, outMax := 1.1, 1.0, 0.9
 				maskVal := (z-waterMax)*(outMax-outMin)/(grassMin-waterMax) + outMin
 				mask = pixel.RGB(maskVal, maskVal, maskVal)
 			}
 
-			if err := g.createTile(target, x, y, mask); err != nil {
+			roadZ := g.roadGen.Noise2D(float64(x)/11, float64(y)/11) + 1
+			if roadZ > 1.5 {
+				tileImage = file.RoadNESW
+			}
+
+			if err := g.createTile(tileImage, x, y, mask); err != nil {
 				return fmt.Errorf("failed to create tile: %s", err)
 			}
 		}
