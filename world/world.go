@@ -3,6 +3,7 @@ package world
 
 import (
 	"fmt"
+	"image/color"
 	"math/rand"
 	"sync"
 
@@ -13,26 +14,11 @@ import (
 	"github.com/jemgunay/game/file"
 )
 
-const (
-	// just grater than 200 to overlap, preventing stitching glitch
-	tileSize  = 201
-	chunkSize = 50
-
-	// weight/noisiness
-	perlinAlpha = 2.0
-	// harmonic scaling/spacing
-	perlinBeta = 1.0
-	// number of iterations
-	perlinIterations = 3
-	// source of perlin noise randomness
-	perlinSeed = int64(100)
-)
-
 // Tile represents a single tile sprite and its corresponding properties.
 type Tile struct {
 	fileName   file.ImageFile
 	sprite     *pixel.Sprite
-	colourMask pixel.RGBA
+	colourMask color.Color
 	visible    bool
 
 	// the grid co-ordinate representation of the tile position
@@ -43,21 +29,34 @@ type Tile struct {
 
 // TileGrid is a concurrency safe map of tiles.
 type TileGrid struct {
-	tiles          map[string]*Tile
-	noiseGenerator *perlin.Perlin
+	tiles      map[string]*Tile
+	terrainGen *perlin.Perlin
 	sync.RWMutex
 }
 
+const (
+	// just grater than 200 to overlap, preventing stitching glitch
+	tileSize  = 201
+	chunkSize = 50
+
+	// weight/noisiness
+	terrainPerlinAlpha = 2.0
+	// harmonic scaling/spacing
+	terrainPerlinBeta = 1.0
+	// number of iterations
+	terrainPerlinIterations = 3
+)
+
 // NewTileGrid creates and initialises a new tile grid.
-func NewTileGrid() *TileGrid {
+func NewTileGrid(seed int64) *TileGrid {
 	return &TileGrid{
-		tiles:          make(map[string]*Tile),
-		noiseGenerator: perlin.NewPerlinRandSource(perlinAlpha, perlinBeta, perlinIterations, rand.NewSource(perlinSeed)),
+		tiles:      make(map[string]*Tile),
+		terrainGen: perlin.NewPerlinRandSource(terrainPerlinAlpha, terrainPerlinBeta, terrainPerlinIterations, rand.NewSource(seed)),
 	}
 }
 
-// CreateTile creates a new tile and inserts it into the tile grid given the tile image and x/y grid co-ordinates.
-func (g *TileGrid) CreateTile(imageFile file.ImageFile, x, y int, mask pixel.RGBA) error {
+// createTile creates a new tile and inserts it into the tile grid given the tile image and x/y grid co-ordinates.
+func (g *TileGrid) createTile(imageFile file.ImageFile, x, y int, mask color.Color) error {
 	// create sprite
 	sprite, err := file.CreateSprite(imageFile)
 	if err != nil {
@@ -103,13 +102,13 @@ func (g *TileGrid) Draw(win *pixelgl.Window) {
 
 // GenerateChunk generates a chunk of tiles.
 func (g *TileGrid) GenerateChunk() error {
-	var minZ, maxZ float64
+	var minZ, maxZ = 10.0, -10.0
 
 	// generate perlin noise map
 	for x := 0; x < chunkSize; x++ {
 		for y := 0; y < chunkSize; y++ {
 			// add one to scale z between 0 and 2
-			z := g.noiseGenerator.Noise2D(float64(x)/10, float64(y)/10) + 1
+			z := g.terrainGen.Noise2D(float64(x)/10, float64(y)/10) + 1
 
 			if z < minZ {
 				minZ = z
@@ -120,24 +119,23 @@ func (g *TileGrid) GenerateChunk() error {
 
 			var (
 				target   file.ImageFile
+				mask     color.Color
 				waterMax = 0.66
-				sandMax = 0.8
-				grassMin = 1.2
+				sandMax  = 0.8
 			)
 			if z < waterMax {
 				target = file.Water
 			} else if z >= waterMax && z < sandMax {
 				target = file.Sand
-			} else if z >= sandMax && z < grassMin {
+			} else if z >= sandMax {
 				target = file.Grass
-			} else {
-				target = file.Grass
+				// shade grass tiles based on height
+				grassMin, outMin, outMax := 1.1, 1.0, 0.9
+				maskVal := (z-waterMax)*(outMax-outMin)/(grassMin-waterMax) + outMin
+				mask = pixel.RGB(maskVal, maskVal, maskVal)
 			}
 
-			// shade grass tiles based on height
-			outMin, outMax := 1.0, 0.9
-			maskVal := (z-waterMax)*(outMax-outMin)/(grassMin-waterMax) + outMin
-			if err := g.CreateTile(target, x, y, pixel.RGB(maskVal, maskVal, maskVal)); err != nil {
+			if err := g.createTile(target, x, y, mask); err != nil {
 				return fmt.Errorf("failed to create tile: %s", err)
 			}
 		}

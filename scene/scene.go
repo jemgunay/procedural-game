@@ -123,7 +123,7 @@ type Game struct {
 	overlayResult chan LayerResult
 }
 
-// GameType si sued to differentiate between a client and server game instance.
+// GameType is used to differentiate between a client and server game instance.
 type GameType string
 
 // Game type constants.
@@ -135,7 +135,7 @@ const (
 // NewGame creates and initialises a new Game layer.
 func NewGame(gameType GameType) (game *Game, err error) {
 	// generate world
-	tileGrid := world.NewTileGrid()
+	tileGrid := world.NewTileGrid(100)
 	if err = tileGrid.GenerateChunk(); err != nil {
 		return nil, fmt.Errorf("failed to generate world: %s", err)
 	}
