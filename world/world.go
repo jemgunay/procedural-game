@@ -20,6 +20,7 @@ type Tile struct {
 	sprite     *pixel.Sprite
 	colourMask color.Color
 	visible    bool
+	NoiseVal   float64
 
 	// the grid co-ordinate representation of the tile position
 	gridPos pixel.Vec
@@ -58,7 +59,7 @@ func NewTileGrid(seed int64) *TileGrid {
 }
 
 // createTile creates a new tile and inserts it into the tile grid given the tile image and x/y grid co-ordinates.
-func (g *TileGrid) createTile(imageFile file.ImageFile, x, y int, mask color.Color) error {
+func (g *TileGrid) createTile(imageFile file.ImageFile, x, y int, z float64, mask color.Color) error {
 	// create sprite
 	sprite, err := file.CreateSprite(imageFile)
 	if err != nil {
@@ -70,6 +71,7 @@ func (g *TileGrid) createTile(imageFile file.ImageFile, x, y int, mask color.Col
 	newTile := &Tile{
 		fileName:   imageFile,
 		sprite:     sprite,
+		NoiseVal:   z,
 		colourMask: mask,
 		visible:    true,
 		gridPos:    pixel.V(float64(x), float64(y)),
@@ -137,29 +139,25 @@ func (g *TileGrid) GenerateChunk() error {
 				mask = pixel.RGB(maskVal, maskVal, maskVal)
 			}
 
-			roadZ := g.roadGen.Noise2D(float64(x)/11, float64(y)/11) + 1
-			if roadZ > 1.5 {
-				tileImage = file.RoadNESW
-			}
-
-			if err := g.createTile(tileImage, x, y, mask); err != nil {
+			if err := g.createTile(tileImage, x, y, z, mask); err != nil {
 				return fmt.Errorf("failed to create tile: %s", err)
 			}
 		}
 	}
 
-	/*for _, tile := range g.tiles {
-		if tile.fileName != file.RoadNESW {
-			continue
-		}
+	// fine points at the grass peaks
+	var peakTiles []*Tile
+	for _, tile := range g.tiles {
 		count := g.CheckNeighbours(tile, true, func(t1, t2 *Tile) bool {
-			return t1.fileName == t2.fileName
+			return t1.NoiseVal > t2.NoiseVal
 		})
 		if count == 8 {
 			tile.visible = false
-			//tile.visible = true
 		}
-	}*/
+		peakTiles = append(peakTiles, tile)
+	}
+
+	// determine closest peak tiles
 
 	fmt.Printf("Min Z: %v\nMax Z: %v\n", minZ, maxZ)
 	return nil
