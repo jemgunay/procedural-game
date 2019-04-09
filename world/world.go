@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image/color"
 	"math/rand"
+	"sort"
 	"sync"
 
 	"github.com/aquilax/go-perlin"
@@ -28,14 +29,6 @@ type Tile struct {
 	absPos pixel.Matrix
 }
 
-// TileGrid is a concurrency safe map of tiles.
-type TileGrid struct {
-	tiles      map[string]*Tile
-	terrainGen *perlin.Perlin
-	roadGen    *perlin.Perlin
-	sync.RWMutex
-}
-
 const (
 	// just grater than 200 to overlap, preventing stitching glitch
 	tileSize  = 201
@@ -49,12 +42,21 @@ const (
 	terrainPerlinIterations = 3
 )
 
+// TileGrid is a concurrency safe map of tiles.
+type TileGrid struct {
+	tiles      map[string]*Tile
+	terrainGen *perlin.Perlin
+	randGen    *rand.Rand
+	sync.RWMutex
+}
+
 // NewTileGrid creates and initialises a new tile grid.
 func NewTileGrid(seed int64) *TileGrid {
+	rand.Seed(seed)
 	return &TileGrid{
 		tiles:      make(map[string]*Tile),
 		terrainGen: perlin.NewPerlinRandSource(terrainPerlinAlpha, terrainPerlinBeta, terrainPerlinIterations, rand.NewSource(seed)),
-		roadGen:    perlin.NewPerlinRandSource(1.0, terrainPerlinBeta, terrainPerlinIterations, rand.NewSource(seed)),
+		randGen:    rand.New(rand.NewSource(seed)),
 	}
 }
 
@@ -153,11 +155,61 @@ func (g *TileGrid) GenerateChunk() error {
 		})
 		if count == 8 {
 			tile.visible = false
+			peakTiles = append(peakTiles, tile)
 		}
-		peakTiles = append(peakTiles, tile)
 	}
 
-	// determine closest peak tiles
+	type distPair struct {
+		tile *Tile
+		dist float64
+	}
+
+	for i := range peakTiles {
+		// determine closest peak tiles for the current tile
+		var dists []distPair
+
+		for j := range peakTiles {
+			// don't compare a tile against itself
+			if i == j {
+				continue
+			}
+			dist := peakTiles[i].gridPos.To(peakTiles[j].gridPos).Len()
+			dists = append(dists, distPair{
+				tile: peakTiles[j],
+				dist: dist,
+			})
+		}
+
+		// sort by distance
+		sort.Slice(dists, func(i2 int, j2 int) bool {
+			return dists[i2].dist < dists[j2].dist
+		})
+
+		// join 4 closest roads
+		for _, d := range dists[:4] {
+			startX := peakTiles[i].gridPos.X
+			endX := d.tile.gridPos.X
+			if endX < startX {
+				endX, startX = startX, endX
+			}
+
+			startY := peakTiles[i].gridPos.Y
+			endY := d.tile.gridPos.Y
+			if endY < startY {
+				endY, startY = startY, endY
+			}
+
+			for i := int(startX); i < int(endX); i++ {
+				tile := g.Get(pixel.V(float64(i), startY))
+				tile.visible = false
+			}
+			for i := int(startY); i < int(endY); i++ {
+				tile := g.Get(pixel.V(startX, float64(i)))
+				tile.visible = false
+			}
+		}
+		break
+	}
 
 	fmt.Printf("Min Z: %v\nMax Z: %v\n", minZ, maxZ)
 	return nil
