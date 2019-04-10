@@ -154,8 +154,12 @@ func (g *TileGrid) GenerateChunk() error {
 			return t1.NoiseVal > t2.NoiseVal
 		})
 		if count == 8 {
-			tile.visible = false
+			//tile.visible = false
+			tile.colourMask = pixel.RGB(0, 0, 0)
 			peakTiles = append(peakTiles, tile)
+			if len(peakTiles) == 5 {
+				break
+			}
 		}
 	}
 
@@ -182,10 +186,16 @@ func (g *TileGrid) GenerateChunk() error {
 
 		// sort by distance
 		sort.Slice(dists, func(i2 int, j2 int) bool {
-			return dists[i2].dist < dists[j2].dist
+			return dists[i2].dist > dists[j2].dist
 		})
+		for i := len(dists)/2 - 1; i >= 0; i-- {
+			opp := len(dists) - 1 - i
+			dists[i], dists[opp] = dists[opp], dists[i]
+		}
 
 		// join 4 closest roads
+		// TODO: check length of dists
+		peakTiles[i].colourMask = pixel.RGB(3, 3, 0)
 		for _, d := range dists[:4] {
 			startX := peakTiles[i].gridPos.X
 			endX := d.tile.gridPos.X
@@ -201,11 +211,18 @@ func (g *TileGrid) GenerateChunk() error {
 
 			for i := int(startX); i < int(endX); i++ {
 				tile := g.Get(pixel.V(float64(i), startY))
-				tile.visible = false
+				//tile.visible = false
+				if tile.colourMask == pixel.RGB(0, 0, 0) || tile.colourMask == pixel.RGB(3, 3, 0) {
+					continue
+				}
+				tile.colourMask = pixel.RGB(2, 2, 2)
 			}
 			for i := int(startY); i < int(endY); i++ {
 				tile := g.Get(pixel.V(startX, float64(i)))
-				tile.visible = false
+				if tile.colourMask == pixel.RGB(0, 0, 0) || tile.colourMask == pixel.RGB(3, 3, 0) {
+					continue
+				}
+				tile.colourMask = pixel.RGB(2, 2, 2)
 			}
 		}
 		break
