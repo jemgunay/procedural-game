@@ -22,6 +22,7 @@ type Tile struct {
 	colourMask color.Color
 	visible    bool
 	NoiseVal   float64
+	links int
 
 	// the grid co-ordinate representation of the tile position
 	gridPos pixel.Vec
@@ -157,17 +158,18 @@ func (g *TileGrid) GenerateChunk() error {
 			//tile.visible = false
 			tile.colourMask = pixel.RGB(0, 0, 0)
 			peakTiles = append(peakTiles, tile)
-			if len(peakTiles) == 5 {
-				break
-			}
 		}
 	}
+
+	sort.Slice(peakTiles, func(i2 int, j2 int) bool {
+		return peakTiles[i2].NoiseVal > peakTiles[j2].NoiseVal
+	})
 
 	type distPair struct {
 		tile *Tile
 		dist float64
+		connections int
 	}
-
 	for i := range peakTiles {
 		// determine closest peak tiles for the current tile
 		var dists []distPair
@@ -186,17 +188,24 @@ func (g *TileGrid) GenerateChunk() error {
 
 		// sort by distance
 		sort.Slice(dists, func(i2 int, j2 int) bool {
-			return dists[i2].dist > dists[j2].dist
+			return dists[i2].dist < dists[j2].dist
 		})
-		for i := len(dists)/2 - 1; i >= 0; i-- {
-			opp := len(dists) - 1 - i
-			dists[i], dists[opp] = dists[opp], dists[i]
-		}
 
-		// join 4 closest roads
+		// join closest roads
 		// TODO: check length of dists
 		peakTiles[i].colourMask = pixel.RGB(3, 3, 0)
-		for _, d := range dists[:4] {
+		for _, d := range dists[:2+g.randGen.Intn(2)] {
+
+			if d.tile.links == 5 {
+				continue
+			}
+			if peakTiles[i].links == 5 {
+				break
+			}
+			d.tile.links++
+			peakTiles[i].links++
+
+
 			startX := peakTiles[i].gridPos.X
 			endX := d.tile.gridPos.X
 			if endX < startX {
@@ -209,14 +218,15 @@ func (g *TileGrid) GenerateChunk() error {
 				endY, startY = startY, endY
 			}
 
+			// draw horizontal roads
 			for i := int(startX); i < int(endX); i++ {
 				tile := g.Get(pixel.V(float64(i), startY))
-				//tile.visible = false
 				if tile.colourMask == pixel.RGB(0, 0, 0) || tile.colourMask == pixel.RGB(3, 3, 0) {
 					continue
 				}
 				tile.colourMask = pixel.RGB(2, 2, 2)
 			}
+			// draw vertical roads
 			for i := int(startY); i < int(endY); i++ {
 				tile := g.Get(pixel.V(startX, float64(i)))
 				if tile.colourMask == pixel.RGB(0, 0, 0) || tile.colourMask == pixel.RGB(3, 3, 0) {
@@ -225,7 +235,6 @@ func (g *TileGrid) GenerateChunk() error {
 				tile.colourMask = pixel.RGB(2, 2, 2)
 			}
 		}
-		break
 	}
 
 	fmt.Printf("Min Z: %v\nMax Z: %v\n", minZ, maxZ)

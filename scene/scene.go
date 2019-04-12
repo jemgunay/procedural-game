@@ -183,7 +183,7 @@ func NewGame(gameType GameType) (game *Game, err error) {
 		gameType: gameType,
 		tileGrid: tileGrid,
 		players:  player.NewStore(),
-		camScale: 1.0,
+		camScale: 0.5,
 	}
 
 	// create main player
@@ -206,10 +206,10 @@ func (g *Game) ProcessServerUpdates() {
 		switch msg := client.Poll(); msg.Type {
 		// new player joined the game
 		case "user_joined":
-			fmt.Println(msg.Value + " joined the game!")
 			if _, err := g.players.Add(msg.Value); err != nil {
 				break
 			}
+			fmt.Println(msg.Value + " joined the game!")
 
 		// initialise world and already existing players after joining a new game
 		case "init_world":
@@ -223,13 +223,13 @@ func (g *Game) ProcessServerUpdates() {
 				}
 
 				// add new player
-				np, err := g.players.Add(name)
+				p, err := g.players.Add(name)
 				if err != nil {
 					fmt.Printf("failed to add player \"%s\": %s\n", name, err)
 					break
 				}
-				np.SetPos(pos)
-				np.SetOrientation(rot)
+				p.SetPos(pos)
+				p.SetOrientation(rot)
 			}
 
 		// update a player's position and orientation
