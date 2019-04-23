@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"unicode"
 
 	"github.com/twinj/uuid"
 )
@@ -15,8 +16,8 @@ type User struct {
 	conn net.Conn
 	name string
 	// a uuid is returned to a new new client which is used as a validation token during future connections
-	uuid    string
-	blocked bool
+	uuid      string
+	blocked   bool
 	posRotStr string
 }
 
@@ -75,14 +76,27 @@ func (d *UserDB) Broadcast(msg Message, excludeUUIDs ...string) {
 
 // Create creates a new user in the user DB given a username and connection.
 func (d *UserDB) Create(username string, conn net.Conn) (User, error) {
+	// create new user at the top of this func so that the conn can be consumed on error
+	newUser := User{
+		name: username,
+		conn: conn,
+		uuid: uuid.NewV4().String(),
+	}
+
 	// validate username
 	switch {
 	case len(username) < 6:
-		return User{}, errors.New("username must have a minimum length of 6 characters")
+		return newUser, errors.New("username must have a minimum length of 6 characters")
 	case len(username) > 12:
-		return User{}, errors.New("username length must not exceed 12 characters")
+		return newUser, errors.New("username length must not exceed 12 characters")
 	}
-	// TODO: validate username to ensure it only contains letters/numbers
+
+	// allow letters, numbers, underscore and hyphen
+	for _, r := range username {
+		if !unicode.IsLetter(r) && !unicode.IsNumber(r) && r != '_' && r != '-' {
+			return newUser, errors.New("username can only contain letters, numbers, underscores and hyphens")
+		}
+	}
 
 	var err error
 	d.RLock()
@@ -94,18 +108,12 @@ func (d *UserDB) Create(username string, conn net.Conn) (User, error) {
 	}
 	d.RUnlock()
 	if err != nil {
-		return User{}, err
+		return newUser, err
 	}
 
 	// insert new user into DB
-	newUUID := uuid.NewV4().String()
-	newUser := User{
-		name: username,
-		conn: conn,
-		uuid: newUUID,
-	}
 	d.Lock()
-	d.users[newUUID] = newUser
+	d.users[newUser.uuid] = newUser
 	d.Unlock()
 	return newUser, nil
 }
