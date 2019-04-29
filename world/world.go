@@ -22,7 +22,7 @@ type Tile struct {
 	colourMask color.Color
 	visible    bool
 	NoiseVal   float64
-	links int
+	links      int
 
 	// the grid co-ordinate representation of the tile position
 	gridPos pixel.Vec
@@ -147,27 +147,40 @@ func (g *TileGrid) GenerateChunk() error {
 			}
 		}
 	}
+	fmt.Printf("Min Z: %v\nMax Z: %v\n", minZ, maxZ)
 
-	// fine points at the grass peaks
+	// find points at the grass peaks (tiles where all neighbours have a smaller Z value)
 	var peakTiles []*Tile
 	for _, tile := range g.tiles {
 		count := g.CheckNeighbours(tile, true, func(t1, t2 *Tile) bool {
 			return t1.NoiseVal > t2.NoiseVal
 		})
 		if count == 8 {
-			//tile.visible = false
+			// check if new peak tile is too close to an existing peak tile
+			tooClose := false
+			for i := range peakTiles {
+				if tile.gridPos.To(peakTiles[i].gridPos).Len() < 10 {
+					tooClose = true
+				}
+			}
+
+			if tooClose {
+				continue
+			}
+			// tile is a peak tile
 			tile.colourMask = pixel.RGB(0, 0, 0)
 			peakTiles = append(peakTiles, tile)
 		}
 	}
 
+	// sort peak tiles by Z value
 	sort.Slice(peakTiles, func(i2 int, j2 int) bool {
 		return peakTiles[i2].NoiseVal > peakTiles[j2].NoiseVal
 	})
 
 	type distPair struct {
-		tile *Tile
-		dist float64
+		tile        *Tile
+		dist        float64
 		connections int
 	}
 	for i := range peakTiles {
@@ -186,59 +199,89 @@ func (g *TileGrid) GenerateChunk() error {
 			})
 		}
 
-		// sort by distance
+		// order all pairs by distance
 		sort.Slice(dists, func(i2 int, j2 int) bool {
 			return dists[i2].dist < dists[j2].dist
 		})
 
-		// join closest roads
-		// TODO: check length of dists
-		peakTiles[i].colourMask = pixel.RGB(3, 3, 0)
-		for _, d := range dists[:2+g.randGen.Intn(2)] {
+		// cap n to max num of peak tiles
+		neighbourCount := 2 + g.randGen.Intn(3)
+		if neighbourCount > len(dists) {
+			neighbourCount = len(dists)
+		}
+		// join closest n roads (n = 2 + ran(0, 3))
+		for i := 0; i < neighbourCount; i++ {
 
-			if d.tile.links == 5 {
-				continue
-			}
-			if peakTiles[i].links == 5 {
-				break
-			}
-			d.tile.links++
-			peakTiles[i].links++
-
-
-			startX := peakTiles[i].gridPos.X
-			endX := d.tile.gridPos.X
-			if endX < startX {
-				endX, startX = startX, endX
-			}
-
-			startY := peakTiles[i].gridPos.Y
-			endY := d.tile.gridPos.Y
-			if endY < startY {
-				endY, startY = startY, endY
-			}
-
-			// draw horizontal roads
-			for i := int(startX); i < int(endX); i++ {
-				tile := g.Get(pixel.V(float64(i), startY))
-				if tile.colourMask == pixel.RGB(0, 0, 0) || tile.colourMask == pixel.RGB(3, 3, 0) {
-					continue
-				}
-				tile.colourMask = pixel.RGB(2, 2, 2)
-			}
-			// draw vertical roads
-			for i := int(startY); i < int(endY); i++ {
-				tile := g.Get(pixel.V(startX, float64(i)))
-				if tile.colourMask == pixel.RGB(0, 0, 0) || tile.colourMask == pixel.RGB(3, 3, 0) {
-					continue
-				}
-				tile.colourMask = pixel.RGB(2, 2, 2)
-			}
+		}
+		for _, d := range dists[:neighbourCount] {
+			g.joinTiles(peakTiles[i], d.tile)
 		}
 	}
 
-	fmt.Printf("Min Z: %v\nMax Z: %v\n", minZ, maxZ)
 	return nil
+}
+
+func (g *TileGrid) joinTiles(t1, t2 *Tile) {
+	horizontalFirst := g.randGen.Intn(2) == 0
+	t1X, t1Y := int(t1.gridPos.X), int(t1.gridPos.Y)
+	t2X, t2Y := int(t2.gridPos.X), int(t2.gridPos.Y)
+
+	if horizontalFirst {
+		// draw horizontal roads
+		if t1X > t2X {
+			for i := t2X; i < t1X; i++ {
+				g.setTile(i, t1Y)
+			}
+		} else {
+			for i := t1X; i < t2X; i++ {
+				g.setTile(i, t1Y)
+			}
+		}
+
+		// draw vertical roads
+		if t1Y > t2Y {
+			for i := t2Y; i < t1Y; i++ {
+				g.setTile(t2X, i)
+			}
+		} else {
+			for i := t1Y; i < t2Y; i++ {
+				g.setTile(t2X, i)
+			}
+		}
+
+		return
+	}
+
+	// draw vertical roads
+	if t1Y > t2Y {
+		for i := t2Y; i < t1Y; i++ {
+			g.setTile(t1X, i)
+		}
+	} else {
+		for i := t1Y; i < t2Y; i++ {
+			g.setTile(t1X, i)
+		}
+	}
+
+	// draw horizontal roads
+	if t1X > t2X {
+		for i := t2X; i < t1X; i++ {
+			g.setTile(i, t2Y)
+		}
+	} else {
+		for i := t1X; i < t2X; i++ {
+			g.setTile(i, t2Y)
+		}
+	}
+
+}
+
+func (g *TileGrid) setTile(X, Y int) {
+	tile := g.Get(pixel.V(float64(X), float64(Y)))
+	if tile.colourMask == pixel.RGB(0, 0, 0) || tile.colourMask == pixel.RGB(3, 3, 0) {
+		return
+	}
+	tile.colourMask = pixel.RGB(2, 2, 2)
 }
 
 // NeighbourFunc is used to compare two tiles based on the implemented criteria.
