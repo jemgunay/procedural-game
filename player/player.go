@@ -170,5 +170,3 @@ func (s *Store) Draw(win *pixelgl.Window) {
 	}
 	s.RUnlock()
 }
-
-

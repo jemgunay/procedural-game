@@ -17,17 +17,28 @@ import (
 
 // Tile represents a single tile sprite and its corresponding properties.
 type Tile struct {
-	fileName   file.ImageFile
-	sprite     *pixel.Sprite
-	colourMask color.Color
-	visible    bool
-	NoiseVal   float64
-	links      int
+	fileName     file.ImageFile
+	sprite       *pixel.Sprite
+	colourMask   color.Color
+	visible      bool
+	NoiseVal     float64
+	roadMetaData string
 
 	// the grid co-ordinate representation of the tile position
 	gridPos pixel.Vec
 	// the actual absolute tile position in pixels
 	absPos pixel.Matrix
+}
+
+// SetSprite changes the tile's sprite to the specified image.
+func (t *Tile) SetSprite(imageFile file.ImageFile) (err error) {
+	sprite, err := file.CreateSprite(imageFile)
+	if err != nil {
+		return err
+	}
+	t.fileName = imageFile
+	t.sprite = sprite
+	return nil
 }
 
 const (
@@ -48,6 +59,7 @@ type TileGrid struct {
 	tiles      map[string]*Tile
 	terrainGen *perlin.Perlin
 	randGen    *rand.Rand
+	roadTiles  []*Tile
 	sync.RWMutex
 }
 
@@ -90,9 +102,9 @@ func (g *TileGrid) createTile(imageFile file.ImageFile, x, y int, z float64, mas
 
 // Get retrieves a tile from a tile grid given the tile's grid position. Returns nil if tile does not exist for the
 // provided grid position key.
-func (g *TileGrid) Get(pos pixel.Vec) *Tile {
+func (g *TileGrid) Get(gridPos pixel.Vec) *Tile {
 	g.RLock()
-	tile := g.tiles[pos.String()]
+	tile := g.tiles[gridPos.String()]
 	g.RUnlock()
 	return tile
 }
@@ -168,7 +180,7 @@ func (g *TileGrid) GenerateChunk() error {
 				continue
 			}
 			// tile is a peak tile
-			tile.colourMask = pixel.RGB(0, 0, 0)
+			//tile.colourMask = pixel.RGB(0, 0, 0)
 			peakTiles = append(peakTiles, tile)
 		}
 	}
@@ -210,11 +222,45 @@ func (g *TileGrid) GenerateChunk() error {
 			neighbourCount = len(dists)
 		}
 		// join closest n roads (n = 2 + ran(0, 3))
-		for i := 0; i < neighbourCount; i++ {
-
-		}
 		for _, d := range dists[:neighbourCount] {
 			g.joinTiles(peakTiles[i], d.tile)
+		}
+	}
+
+	// set road sprite based on neighbouring road tiles
+	for _, roadTile := range g.roadTiles {
+		var (
+			northTile    = g.Get(roadTile.gridPos.Add(pixel.V(0, 1)))
+			eastTile     = g.Get(roadTile.gridPos.Add(pixel.V(1, 0)))
+			southTile    = g.Get(roadTile.gridPos.Sub(pixel.V(0, 1)))
+			westTile     = g.Get(roadTile.gridPos.Sub(pixel.V(1, 0)))
+			roadTileName string
+		)
+
+		// compose road file name from neighbouring road tile compass positions
+		if northTile != nil && northTile.roadMetaData == "ROAD" {
+			roadTileName += "n"
+		}
+		if eastTile != nil && eastTile.roadMetaData == "ROAD" {
+			roadTileName += "e"
+		}
+		if southTile != nil && southTile.roadMetaData == "ROAD" {
+			roadTileName += "s"
+		}
+		if westTile != nil && westTile.roadMetaData == "ROAD" {
+			roadTileName += "w"
+		}
+
+		// turn road tiles with only one road neighbour into straight roads
+		switch roadTileName {
+		case "n", "s":
+			roadTileName = "ns"
+		case "e", "w":
+			roadTileName = "ew"
+		}
+		fmt.Println(file.ImageFile("road_" + roadTileName + ".png"))
+		if err := roadTile.SetSprite(file.ImageFile("road_" + roadTileName + ".png")); err != nil {
+			return fmt.Errorf("failed to create road tile: %s", err)
 		}
 	}
 
@@ -229,22 +275,22 @@ func (g *TileGrid) joinTiles(t1, t2 *Tile) {
 	if horizontalFirst {
 		// draw horizontal roads
 		if t1X > t2X {
-			for i := t2X; i < t1X; i++ {
+			for i := t2X; i <= t1X; i++ {
 				g.setTile(i, t1Y)
 			}
 		} else {
-			for i := t1X; i < t2X; i++ {
+			for i := t1X; i <= t2X; i++ {
 				g.setTile(i, t1Y)
 			}
 		}
 
 		// draw vertical roads
 		if t1Y > t2Y {
-			for i := t2Y; i < t1Y; i++ {
+			for i := t2Y; i <= t1Y; i++ {
 				g.setTile(t2X, i)
 			}
 		} else {
-			for i := t1Y; i < t2Y; i++ {
+			for i := t1Y; i <= t2Y; i++ {
 				g.setTile(t2X, i)
 			}
 		}
@@ -254,34 +300,31 @@ func (g *TileGrid) joinTiles(t1, t2 *Tile) {
 
 	// draw vertical roads
 	if t1Y > t2Y {
-		for i := t2Y; i < t1Y; i++ {
+		for i := t2Y; i <= t1Y; i++ {
 			g.setTile(t1X, i)
 		}
 	} else {
-		for i := t1Y; i < t2Y; i++ {
+		for i := t1Y; i <= t2Y; i++ {
 			g.setTile(t1X, i)
 		}
 	}
 
 	// draw horizontal roads
 	if t1X > t2X {
-		for i := t2X; i < t1X; i++ {
+		for i := t2X; i <= t1X; i++ {
 			g.setTile(i, t2Y)
 		}
 	} else {
-		for i := t1X; i < t2X; i++ {
+		for i := t1X; i <= t2X; i++ {
 			g.setTile(i, t2Y)
 		}
 	}
-
 }
 
 func (g *TileGrid) setTile(X, Y int) {
 	tile := g.Get(pixel.V(float64(X), float64(Y)))
-	if tile.colourMask == pixel.RGB(0, 0, 0) || tile.colourMask == pixel.RGB(3, 3, 0) {
-		return
-	}
-	tile.colourMask = pixel.RGB(2, 2, 2)
+	tile.roadMetaData = "ROAD"
+	g.roadTiles = append(g.roadTiles, tile)
 }
 
 // NeighbourFunc is used to compare two tiles based on the implemented criteria.

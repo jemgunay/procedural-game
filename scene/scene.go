@@ -194,14 +194,14 @@ func NewGame(gameType GameType) (game *Game, err error) {
 	game.mainPlayer.SetPos(pixel.V(4000, 4000))
 
 	// receive and process incoming requests from the server
-	go game.ProcessServerUpdates()
+	go game.processServerUpdates()
 
 	return
 }
 
-// ProcessServerUpdates polls the client for incoming requests from the server and applies the corresponding client/
+// processServerUpdates polls the client for incoming requests from the server and applies the corresponding client/
 // player updates.
-func (g *Game) ProcessServerUpdates() {
+func (g *Game) processServerUpdates() {
 	for {
 		switch msg := client.Poll(); msg.Type {
 		// new player joined the game

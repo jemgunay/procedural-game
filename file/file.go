@@ -72,7 +72,7 @@ const (
 	RoadNSW  ImageFile = "road_nsw.png"
 	RoadNEW  ImageFile = "road_new.png"
 	RoadNE   ImageFile = "road_ne.png"
-	RoadSE   ImageFile = "road_se.png"
+	RoadES   ImageFile = "road_es.png"
 	RoadSW   ImageFile = "road_sw.png"
 	RoadNW   ImageFile = "road_nw.png"
 	RoadNS   ImageFile = "road_ns.png"
@@ -90,7 +90,7 @@ var imageFiles = map[ImageFile]bool{
 	RoadNSW:  true,
 	RoadNEW:  true,
 	RoadNE:   true,
-	RoadSE:   true,
+	RoadES:   true,
 	RoadSW:   true,
 	RoadNW:   true,
 	RoadNS:   true,
