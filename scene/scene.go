@@ -170,7 +170,7 @@ func NewGame(gameType GameType) (game *Game, err error) {
 		switch msg.Type {
 		case "register_success":
 			fmt.Printf("user UUID: %s\n", msg.Value)
-		case "register_failure":
+		case "register_failure", "connect_failure":
 			return nil, errors.New(msg.Value)
 		default:
 			continue
