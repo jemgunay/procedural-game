@@ -258,7 +258,8 @@ func (g *TileGrid) GenerateChunk() error {
 		case "e", "w":
 			roadTileName = "ew"
 		}
-		fmt.Println(file.ImageFile("road_" + roadTileName + ".png"))
+
+		// change tile sprite to new road sprite
 		if err := roadTile.SetSprite(file.ImageFile("road_" + roadTileName + ".png")); err != nil {
 			return fmt.Errorf("failed to create road tile: %s", err)
 		}

@@ -314,12 +314,12 @@ func (g *Game) Update(dt float64) {
 		g.mainPlayer.Right(dt)
 	}
 	if win.Pressed(pixelgl.KeyR) {
-		if g.camScale < 2 {
+		if g.camScale < 1.2 {
 			g.camScale += 0.02
 		}
 	}
 	if win.Pressed(pixelgl.KeyF) {
-		if g.camScale > 0 {
+		if g.camScale > 0.07 {
 			g.camScale -= 0.02
 		}
 	}
