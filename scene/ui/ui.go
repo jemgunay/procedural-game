@@ -8,6 +8,7 @@ import (
 	"github.com/faiface/pixel/imdraw"
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/faiface/pixel/text"
+	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/basicfont"
 )
 
@@ -40,48 +41,172 @@ func NewPadding(values ...float64) Padding {
 	return Padding{}
 }
 
-// Container is a structure which draws child UI components
-type Container struct {
-	buttons    []*Button
+type Drawer interface {
+	Draw(win *pixelgl.Window, bounds pixel.Rect)
+}
+
+// FixedContainer is a structure which draws child UI components.
+type FixedContainer struct {
+	elements   []Drawer
 	padding    Padding
 	boundsFunc func() pixel.Rect
 }
 
-// NewContainer creates and initialises a new Container. The padding is applied to all children UI elements.
-func NewContainer(padding Padding, boundsFunc func() pixel.Rect) *Container {
-	return &Container{
+// NewFixedContainer creates and initialises a new FixedContainer. The padding is applied to all children UI elements.
+func NewFixedContainer(padding Padding, boundsFunc func() pixel.Rect) *FixedContainer {
+	return &FixedContainer{
 		padding:    padding,
 		boundsFunc: boundsFunc,
 	}
 }
 
-// AddButton adds a button to the Container button stack.
-func (c *Container) AddButton(btn ...*Button) {
-	// reverse button order before appending
-	for i := len(btn)/2 - 1; i >= 0; i-- {
-		opp := len(btn) - 1 - i
-		btn[i], btn[opp] = btn[opp], btn[i]
-	}
-	c.buttons = append(btn, c.buttons...)
+// AddElement adds an element to the FixedContainer elements stack.
+func (c *FixedContainer) AddElement(element ...Drawer) {
+	c.elements = append(element, c.elements...)
 }
 
-// Draw draws the Container and its contents.
-func (c *Container) Draw(win *pixelgl.Window) {
+// Draw draws the FixedContainer and its contents.
+func (c *FixedContainer) Draw(win *pixelgl.Window) {
 	bounds := c.boundsFunc()
 
-	// represents the maximum area a button can fill (i.e. before padding has been applied)
-	btnWidth := bounds.W()
-	btnHeight := bounds.H() / float64(len(c.buttons))
+	// represents the maximum area a button can fill before padding has been applied)
+	elementWidth := bounds.W()
+	elementHeight := bounds.H() / float64(len(c.elements))
 
-	for i, btn := range c.buttons {
+	for i, element := range c.elements {
 		padding := c.padding
-		yOffset := float64(i) * btnHeight
+		yOffset := float64(i) * elementHeight
 
-		btnBounds := pixel.Rect{
-			Min: pixel.V(bounds.Min.X+padding.Left, bounds.Min.Y+yOffset+padding.Bottom),
-			Max: pixel.V(bounds.Min.X+btnWidth-padding.Right, bounds.Min.Y+yOffset+btnHeight-padding.Top),
+		elementBounds := pixel.Rect{
+			Min: pixel.V(bounds.Min.X+padding.Left, bounds.Max.Y-yOffset-elementHeight+padding.Top),
+			Max: pixel.V(bounds.Min.X+elementWidth-padding.Right, bounds.Max.Y-yOffset-padding.Bottom),
 		}
-		btn.Draw(win, btnBounds)
+		element.Draw(win, elementBounds)
+	}
+}
+
+// ScrollContainer is a structure which draws child UI components.
+type ScrollContainer struct {
+	elements   []Drawer
+	padding    Padding
+	boundsFunc func() pixel.Rect
+
+	scrollBarWidth             float64
+	scrollBarColour            pixel.RGBA
+	scrollBarHandleColour      pixel.RGBA
+	scrollBarHandleColourAlt   pixel.RGBA
+	scrollBarPressed           bool
+	scrollBarHandleBounds      pixel.Rect
+	scrollBarHandleClickDeltaY float64
+}
+
+// NewScrollContainer creates and initialises a new ScrollContainer. The padding is applied to all children UI elements.
+func NewScrollContainer(padding Padding, boundsFunc func() pixel.Rect) *ScrollContainer {
+	return &ScrollContainer{
+		padding:                  padding,
+		boundsFunc:               boundsFunc,
+		scrollBarWidth:           25,
+		scrollBarColour:          pixel.ToRGBA(colornames.Aliceblue),
+		scrollBarHandleColour:    pixel.ToRGBA(colornames.Navajowhite),
+		scrollBarHandleColourAlt: pixel.ToRGBA(colornames.Palevioletred),
+	}
+}
+
+// AddElement adds an element to the ScrollContainer elements stack.
+func (c *ScrollContainer) AddElement(element ...Drawer) {
+	c.elements = append(element, c.elements...)
+}
+
+// Draw draws the ScrollContainer and its contents.
+func (c *ScrollContainer) Draw(win *pixelgl.Window) {
+	bounds := c.boundsFunc()
+
+	// draw elements at fixed height
+	elementWidth := bounds.W()
+	elementHeight := 200.0
+
+	contentHeight := float64(len(c.elements)) * elementHeight
+	contentToBoundsRatio := bounds.H() / contentHeight
+	scrollBarButtonHeight := bounds.H() * contentToBoundsRatio
+
+	// draw scroll bar background
+	scrollBarBG := imdraw.New(nil)
+	scrollBarBG.Color = c.scrollBarColour
+	scrollBarBG.Push(
+		pixel.V(bounds.Max.X-c.scrollBarWidth, bounds.Max.Y),
+		pixel.V(bounds.Max.X, bounds.Max.Y),
+		pixel.V(bounds.Max.X, bounds.Min.Y),
+		pixel.V(bounds.Max.X-c.scrollBarWidth, bounds.Min.Y),
+	)
+	scrollBarBG.Polygon(0)
+	scrollBarBG.Draw(win)
+
+	// init scroll button bounds to top of bar if not yet set
+	if c.scrollBarHandleBounds.Size().Len() == 0 {
+		c.scrollBarHandleBounds = pixel.Rect{
+			Min: pixel.V(bounds.Max.X-c.scrollBarWidth, bounds.Max.Y-scrollBarButtonHeight),
+			Max: pixel.V(bounds.Max.X, bounds.Max.Y),
+		}
+	}
+
+	// on scroll bar handle mouse click or release
+	if win.JustPressed(pixelgl.MouseButton1) && c.scrollBarHandleBounds.Contains(win.MousePosition()) {
+		c.scrollBarPressed = true
+		c.scrollBarHandleClickDeltaY = c.scrollBarHandleBounds.Max.Y - win.MousePosition().Y
+	}
+	if win.JustReleased(pixelgl.MouseButton1) {
+		c.scrollBarPressed = false
+		c.scrollBarHandleClickDeltaY = 0
+	}
+
+	// move scroll bar handle to mouse Y
+	if c.scrollBarPressed {
+		y := win.MousePosition().Y + c.scrollBarHandleClickDeltaY
+		b := pixel.Rect{
+			Min: pixel.V(bounds.Max.X-c.scrollBarWidth, y-scrollBarButtonHeight),
+			Max: pixel.V(bounds.Max.X, y),
+		}
+
+		// prevent scrolling above permitted scroll area
+		if b.Max.Y > bounds.Max.Y {
+			b.Max.Y = bounds.Max.Y
+			b.Min.Y = b.Max.Y - scrollBarButtonHeight
+		} else if b.Min.Y < bounds.Min.Y {
+			b.Min.Y = bounds.Min.Y
+			b.Max.Y = b.Min.Y + scrollBarButtonHeight
+		}
+		c.scrollBarHandleBounds = b
+	}
+
+	// draw scroll bar button
+	scrollBarHandle := imdraw.New(nil)
+	scrollBarHandle.Color = c.scrollBarHandleColour
+	scrollBarHandle.Push(
+		pixel.V(bounds.Max.X-c.scrollBarWidth, c.scrollBarHandleBounds.Max.Y),
+		pixel.V(bounds.Max.X, c.scrollBarHandleBounds.Max.Y),
+		pixel.V(bounds.Max.X, c.scrollBarHandleBounds.Max.Y-scrollBarButtonHeight),
+		pixel.V(bounds.Max.X-c.scrollBarWidth, c.scrollBarHandleBounds.Max.Y-scrollBarButtonHeight),
+	)
+	scrollBarHandle.Polygon(0)
+	scrollBarHandle.Draw(win)
+
+	// determine how far to offset content Y based on scroll position
+	scrollYMax := bounds.Max.Y
+	scrollYMin := bounds.Min.Y - scrollBarButtonHeight
+	scrollDistMax := scrollYMax - scrollYMin
+	scrollDist := scrollDistMax - (scrollYMax - c.scrollBarHandleBounds.Max.Y)
+
+	// draw elements
+	for i, element := range c.elements {
+		padding := c.padding
+		padding.Right += c.scrollBarWidth
+		yOffset := float64(i)*elementHeight + elementScrollOffset
+
+		elementBounds := pixel.Rect{
+			Min: pixel.V(bounds.Min.X+padding.Left, bounds.Max.Y-yOffset-elementHeight+padding.Top),
+			Max: pixel.V(bounds.Min.X+elementWidth-padding.Right, bounds.Max.Y-yOffset-padding.Bottom),
+		}
+		element.Draw(win, elementBounds)
 	}
 }
 
