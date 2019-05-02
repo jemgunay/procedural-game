@@ -91,25 +91,25 @@ type ScrollContainer struct {
 	padding    Padding
 	boundsFunc func() pixel.Rect
 
-	scrollBarWidth             float64
-	scrollBarColour            pixel.RGBA
-	scrollBarHandleColour      pixel.RGBA
-	scrollBarHandleColourAlt   pixel.RGBA
-	scrollBarPressed           bool
-	scrollBarHandleBounds      pixel.Rect
-	scrollBarHandleClickDeltaY float64
+	scrollBarWidth       float64
+	scrollBarColour      pixel.RGBA
+	scrollBtnColour      pixel.RGBA
+	scrollBtnColourAlt   pixel.RGBA
+	scrollBarPressed     bool
+	scrollBtnBounds      pixel.Rect
+	scrollBtnClickDeltaY float64
 }
 
 // NewScrollContainer creates and initialises a new ScrollContainer. The padding is applied to all children UI elements.
 func NewScrollContainer(padding Padding, boundsFunc func() pixel.Rect) *ScrollContainer {
 	s := &ScrollContainer{
-		padding:               padding,
-		boundsFunc:            boundsFunc,
-		scrollBarWidth:        25,
-		scrollBarColour:       pixel.ToRGBA(colornames.Aliceblue),
-		scrollBarHandleColour: pixel.ToRGBA(colornames.Navajowhite),
+		padding:         padding,
+		boundsFunc:      boundsFunc,
+		scrollBarWidth:  25,
+		scrollBarColour: pixel.ToRGBA(colornames.Aliceblue),
+		scrollBtnColour: pixel.ToRGBA(colornames.Navajowhite),
 	}
-	s.scrollBarHandleColourAlt = fadeColour(s.scrollBarHandleColour, 0.9)
+	s.scrollBtnColourAlt = fadeColour(s.scrollBtnColour, 0.9)
 	return s
 }
 
@@ -128,7 +128,7 @@ func (c *ScrollContainer) Draw(win *pixelgl.Window) {
 
 	contentHeight := float64(len(c.elements)) * elementHeight
 	contentToBoundsRatio := bounds.H() / contentHeight
-	scrollBarButtonHeight := bounds.H() * contentToBoundsRatio
+	scrollBtnHeight := bounds.H() * contentToBoundsRatio
 
 	// draw scroll bar background
 	scrollBarBG := imdraw.New(nil)
@@ -142,68 +142,68 @@ func (c *ScrollContainer) Draw(win *pixelgl.Window) {
 	scrollBarBG.Polygon(0)
 	scrollBarBG.Draw(win)
 
-	// init scroll button bounds to top of bar if not yet set
-	if c.scrollBarHandleBounds.Size().Len() == 0 {
-		c.scrollBarHandleBounds = pixel.Rect{
-			Min: pixel.V(bounds.Max.X-c.scrollBarWidth, bounds.Max.Y-scrollBarButtonHeight),
-			Max: pixel.V(bounds.Max.X, bounds.Max.Y),
-		}
+	// init scroll button Y to top of bar if not yet set
+	if c.scrollBtnBounds.Size().Len() == 0 {
+		c.scrollBtnBounds.Min.Y = bounds.Max.Y - scrollBtnHeight
+		c.scrollBtnBounds.Max.Y = bounds.Max.Y
 	}
 
-	// on scroll bar handle mouse click or release
-	if win.JustPressed(pixelgl.MouseButton1) && c.scrollBarHandleBounds.Contains(win.MousePosition()) {
+	// update scroll X pos in case bounds are horizontally resized
+	c.scrollBtnBounds.Min.X = bounds.Max.X - c.scrollBarWidth
+	c.scrollBtnBounds.Max.X = bounds.Max.X
+
+	// on scroll bar button mouse click or release
+	if win.JustPressed(pixelgl.MouseButton1) && c.scrollBtnBounds.Contains(win.MousePosition()) {
 		c.scrollBarPressed = true
-		c.scrollBarHandleClickDeltaY = c.scrollBarHandleBounds.Max.Y - win.MousePosition().Y
+		c.scrollBtnClickDeltaY = c.scrollBtnBounds.Max.Y - win.MousePosition().Y
 	}
 	if win.JustReleased(pixelgl.MouseButton1) {
 		c.scrollBarPressed = false
-		c.scrollBarHandleClickDeltaY = 0
+		c.scrollBtnClickDeltaY = 0
 	}
 
-	// move scroll bar handle to mouse Y
+	// move scroll bar button to mouse Y
 	if c.scrollBarPressed {
-		y := win.MousePosition().Y + c.scrollBarHandleClickDeltaY
-		b := pixel.Rect{
-			Min: pixel.V(bounds.Max.X-c.scrollBarWidth, y-scrollBarButtonHeight),
-			Max: pixel.V(bounds.Max.X, y),
-		}
+		y := win.MousePosition().Y + c.scrollBtnClickDeltaY
+		c.scrollBtnBounds.Min.Y = y - scrollBtnHeight
+		c.scrollBtnBounds.Max.Y = y
+	}
 
-		// prevent scrolling above permitted scroll area
-		if b.Max.Y > bounds.Max.Y {
-			b.Max.Y = bounds.Max.Y
-			b.Min.Y = b.Max.Y - scrollBarButtonHeight
-		} else if b.Min.Y < bounds.Min.Y {
-			b.Min.Y = bounds.Min.Y
-			b.Max.Y = b.Min.Y + scrollBarButtonHeight
-		}
-		c.scrollBarHandleBounds = b
+	// prevent scrolling above permitted scroll area
+	if c.scrollBtnBounds.Max.Y > bounds.Max.Y {
+		c.scrollBtnBounds.Max.Y = bounds.Max.Y
+		c.scrollBtnBounds.Min.Y = c.scrollBtnBounds.Max.Y - scrollBtnHeight
+	} else if c.scrollBtnBounds.Min.Y < bounds.Min.Y {
+		c.scrollBtnBounds.Min.Y = bounds.Min.Y
+		c.scrollBtnBounds.Max.Y = c.scrollBtnBounds.Min.Y + scrollBtnHeight
 	}
 
 	// draw scroll bar button
-	scrollBarHandle := imdraw.New(nil)
-	scrollBarHandle.Color = c.scrollBarHandleColour
+	scrollBtn := imdraw.New(nil)
+	scrollBtn.Color = c.scrollBtnColour
 	if c.scrollBarPressed {
-		scrollBarHandle.Color = c.scrollBarHandleColourAlt
+		scrollBtn.Color = c.scrollBtnColourAlt
 	}
-	scrollBarHandle.Push(
-		pixel.V(bounds.Max.X-c.scrollBarWidth, c.scrollBarHandleBounds.Max.Y),
-		pixel.V(bounds.Max.X, c.scrollBarHandleBounds.Max.Y),
-		pixel.V(bounds.Max.X, c.scrollBarHandleBounds.Max.Y-scrollBarButtonHeight),
-		pixel.V(bounds.Max.X-c.scrollBarWidth, c.scrollBarHandleBounds.Max.Y-scrollBarButtonHeight),
+	scrollBtn.Push(
+		pixel.V(bounds.Max.X-c.scrollBarWidth, c.scrollBtnBounds.Max.Y),
+		pixel.V(bounds.Max.X, c.scrollBtnBounds.Max.Y),
+		pixel.V(bounds.Max.X, c.scrollBtnBounds.Max.Y-scrollBtnHeight),
+		pixel.V(bounds.Max.X-c.scrollBarWidth, c.scrollBtnBounds.Max.Y-scrollBtnHeight),
 	)
-	scrollBarHandle.Polygon(0)
-	scrollBarHandle.Draw(win)
+	scrollBtn.Polygon(0)
+	scrollBtn.Draw(win)
 
 	// determine how far to offset content Y based on scroll position
 	contentScrollDeltaMax := contentHeight - bounds.H()
-	scrollBarMaxScrolledDist := bounds.H() - scrollBarButtonHeight
-	currentScrolledPercent := (bounds.Max.Y - c.scrollBarHandleBounds.Max.Y) / scrollBarMaxScrolledDist
+	scrollBarMaxScrolledDist := bounds.H() - scrollBtnHeight
+	currentScrolledPercent := (bounds.Max.Y - c.scrollBtnBounds.Max.Y) / scrollBarMaxScrolledDist
+	contentScrollOffset := contentScrollDeltaMax * currentScrolledPercent
 
 	// draw elements
 	for i, element := range c.elements {
 		padding := c.padding
 		padding.Right += c.scrollBarWidth
-		yOffset := float64(i)*elementHeight - (contentScrollDeltaMax * currentScrolledPercent)
+		yOffset := float64(i)*elementHeight - contentScrollOffset
 
 		elementBounds := pixel.Rect{
 			Min: pixel.V(bounds.Min.X+padding.Left, bounds.Max.Y-yOffset-elementHeight+padding.Top),
@@ -214,9 +214,16 @@ func (c *ScrollContainer) Draw(win *pixelgl.Window) {
 }
 
 // styling presets/modifiers
-const btnFadeAlpha = 0.8
+const (
+	btnFadeAlpha = 0.85
+)
 
 var (
+	// Colours
+	Blue  = color.RGBA{175, 238, 238, 243}
+	Green = color.RGBA{152, 251, 152, 243}
+	Red   = color.RGBA{219, 112, 147, 243}
+
 	btnColourDisabled    = pixel.RGB(0.9, 0.9, 0.9)
 	btnColourDisabledAlt = pixel.RGB(0.8, 0.8, 0.8)
 )
@@ -268,16 +275,16 @@ func (b *Button) Draw(win *pixelgl.Window, bounds pixel.Rect) {
 			b.clicked = true
 		}
 		if b.enabled {
-			bg.Color = b.bgColour
-			label.Color = b.labelColour
+			bg.Color = b.bgColourAlt
+			label.Color = b.labelColourAlt
 		} else {
 			bg.Color = btnColourDisabled
 			label.Color = btnColourDisabledAlt
 		}
 	} else {
 		if b.enabled {
-			bg.Color = b.bgColourAlt
-			label.Color = b.labelColourAlt
+			bg.Color = b.bgColour
+			label.Color = b.labelColour
 		} else {
 			bg.Color = btnColourDisabledAlt
 			label.Color = btnColourDisabled
@@ -307,15 +314,14 @@ func (b *Button) Draw(win *pixelgl.Window, bounds pixel.Rect) {
 
 // NewButton creates and initialises a new Button.
 func NewButton(label string, bgColour, labelColour color.Color) *Button {
-	b := &Button{
+	return &Button{
 		enabled:        true,
 		bgColour:       pixel.ToRGBA(bgColour),
 		bgColourAlt:    fadeColour(bgColour, btnFadeAlpha),
 		label:          label,
-		labelColour:    fadeColour(labelColour, btnFadeAlpha),
-		labelColourAlt: pixel.ToRGBA(labelColour),
+		labelColour:    pixel.ToRGBA(labelColour),
+		labelColourAlt: fadeColour(labelColour, btnFadeAlpha),
 	}
-	return b
 }
 
 func fadeColour(colour color.Color, alpha float64) pixel.RGBA {

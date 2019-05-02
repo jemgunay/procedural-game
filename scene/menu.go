@@ -27,9 +27,9 @@ func NewMainMenu() *MainMenu {
 
 	menu := &MainMenu{
 		uiContainer: container,
-		createBtn:   ui.NewButton("Create Game", colornames.Paleturquoise, colornames.White),
-		joinBtn:     ui.NewButton("Join Game", colornames.Palegreen, colornames.White),
-		settingsBtn: ui.NewButton("Settings", colornames.Palevioletred, colornames.White),
+		createBtn:   ui.NewButton("Create Game", ui.Blue, colornames.White),
+		joinBtn:     ui.NewButton("Join Game", ui.Green, colornames.White),
+		settingsBtn: ui.NewButton("Settings", ui.Red, colornames.White),
 	}
 
 	container.AddElement(menu.createBtn, menu.joinBtn, menu.settingsBtn)
@@ -84,7 +84,7 @@ func NewCreateGameMenu() *CreateGameMenu {
 
 	menu := &CreateGameMenu{
 		uiContainer: container,
-		startBtn:    ui.NewButton("Start", colornames.Paleturquoise, colornames.White),
+		startBtn:    ui.NewButton("Start", ui.Blue, colornames.White),
 	}
 
 	container.AddElement(menu.startBtn, menu.startBtn, menu.startBtn, menu.startBtn, menu.startBtn, menu.startBtn, menu.startBtn)
@@ -136,9 +136,9 @@ func NewOverlayMenu() *OverlayMenu {
 
 	menu := &OverlayMenu{
 		uiContainer: container,
-		resumeBtn:   ui.NewButton("Resume", colornames.Paleturquoise, colornames.White),
-		serverBtn:   ui.NewButton("Server Settings", colornames.Palegreen, colornames.White),
-		quitBtn:     ui.NewButton("Quit Game", colornames.Palevioletred, colornames.White),
+		resumeBtn:   ui.NewButton("Resume", ui.Blue, colornames.White),
+		serverBtn:   ui.NewButton("Server Settings", ui.Green, colornames.White),
+		quitBtn:     ui.NewButton("Quit Game", ui.Red, colornames.White),
 	}
 	container.AddElement(menu.resumeBtn, menu.serverBtn, menu.quitBtn)
 
@@ -148,7 +148,7 @@ func NewOverlayMenu() *OverlayMenu {
 // Update updates the overlay menu layer logic.
 func (m *OverlayMenu) Update(dt float64) {
 	switch {
-	case m.resumeBtn.Clicked() || win.JustPressed(pixelgl.KeyEscape):
+	case m.resumeBtn.Clicked(), win.JustPressed(pixelgl.KeyEscape):
 		Pop(Default)
 	case m.serverBtn.Clicked():
 		m.serverBtn.ToggleEnabled()
