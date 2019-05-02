@@ -102,14 +102,15 @@ type ScrollContainer struct {
 
 // NewScrollContainer creates and initialises a new ScrollContainer. The padding is applied to all children UI elements.
 func NewScrollContainer(padding Padding, boundsFunc func() pixel.Rect) *ScrollContainer {
-	return &ScrollContainer{
-		padding:                  padding,
-		boundsFunc:               boundsFunc,
-		scrollBarWidth:           25,
-		scrollBarColour:          pixel.ToRGBA(colornames.Aliceblue),
-		scrollBarHandleColour:    pixel.ToRGBA(colornames.Navajowhite),
-		scrollBarHandleColourAlt: pixel.ToRGBA(colornames.Palevioletred),
+	s := &ScrollContainer{
+		padding:               padding,
+		boundsFunc:            boundsFunc,
+		scrollBarWidth:        25,
+		scrollBarColour:       pixel.ToRGBA(colornames.Aliceblue),
+		scrollBarHandleColour: pixel.ToRGBA(colornames.Navajowhite),
 	}
+	s.scrollBarHandleColourAlt = fadeColour(s.scrollBarHandleColour, 0.9)
+	return s
 }
 
 // AddElement adds an element to the ScrollContainer elements stack.
@@ -121,7 +122,7 @@ func (c *ScrollContainer) AddElement(element ...Drawer) {
 func (c *ScrollContainer) Draw(win *pixelgl.Window) {
 	bounds := c.boundsFunc()
 
-	// draw elements at fixed height
+	// draw elements at fixed size
 	elementWidth := bounds.W()
 	elementHeight := 200.0
 
@@ -181,6 +182,9 @@ func (c *ScrollContainer) Draw(win *pixelgl.Window) {
 	// draw scroll bar button
 	scrollBarHandle := imdraw.New(nil)
 	scrollBarHandle.Color = c.scrollBarHandleColour
+	if c.scrollBarPressed {
+		scrollBarHandle.Color = c.scrollBarHandleColourAlt
+	}
 	scrollBarHandle.Push(
 		pixel.V(bounds.Max.X-c.scrollBarWidth, c.scrollBarHandleBounds.Max.Y),
 		pixel.V(bounds.Max.X, c.scrollBarHandleBounds.Max.Y),
@@ -191,16 +195,15 @@ func (c *ScrollContainer) Draw(win *pixelgl.Window) {
 	scrollBarHandle.Draw(win)
 
 	// determine how far to offset content Y based on scroll position
-	scrollYMax := bounds.Max.Y
-	scrollYMin := bounds.Min.Y - scrollBarButtonHeight
-	scrollDistMax := scrollYMax - scrollYMin
-	scrollDist := scrollDistMax - (scrollYMax - c.scrollBarHandleBounds.Max.Y)
+	contentScrollDeltaMax := contentHeight - bounds.H()
+	scrollBarMaxScrolledDist := bounds.H() - scrollBarButtonHeight
+	currentScrolledPercent := (bounds.Max.Y - c.scrollBarHandleBounds.Max.Y) / scrollBarMaxScrolledDist
 
 	// draw elements
 	for i, element := range c.elements {
 		padding := c.padding
 		padding.Right += c.scrollBarWidth
-		yOffset := float64(i)*elementHeight + elementScrollOffset
+		yOffset := float64(i)*elementHeight - (contentScrollDeltaMax * currentScrolledPercent)
 
 		elementBounds := pixel.Rect{
 			Min: pixel.V(bounds.Min.X+padding.Left, bounds.Max.Y-yOffset-elementHeight+padding.Top),
