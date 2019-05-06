@@ -338,6 +338,7 @@ func (b *Button) Draw(win *pixelgl.Window, bounds pixel.Rect) {
 	label.Draw(win, pixel.IM.Scaled(label.Orig, labelScaleFactor).Moved(labelPos))
 }
 
+// TextBox is a text input box UI element.
 type TextBox struct {
 	hasFocus bool
 
@@ -348,6 +349,7 @@ type TextBox struct {
 	textColourAlt pixel.RGBA
 }
 
+// NewTextBox creates and initialises a UI text input box.
 func NewTextBox(label string, bgColour, textColour color.Color) *TextBox {
 	return &TextBox{
 		bgColour:      pixel.ToRGBA(bgColour),
@@ -357,6 +359,7 @@ func NewTextBox(label string, bgColour, textColour color.Color) *TextBox {
 	}
 }
 
+// Draw draws a TextBox onto a window within the specified bounds. It also processes keyboard input and click focus.
 func (t *TextBox) Draw(win *pixelgl.Window, bounds pixel.Rect) {
 	// background
 	bg := imdraw.New(nil)
@@ -404,10 +407,12 @@ func (t *TextBox) Draw(win *pixelgl.Window, bounds pixel.Rect) {
 	txt.Draw(win, pixel.IM.Scaled(txt.Orig, labelScaleFactor).Moved(labelPos))
 }
 
+// SetText sets the text box input value.
 func (t *TextBox) SetText(text string) {
 	t.text = text
 }
 
+// Text returns the text box input value.
 func (t *TextBox) Text() string {
 	return t.text
 }

@@ -137,18 +137,6 @@ const (
 
 // NewGame creates and initialises a new Game layer.
 func NewGame(gameType GameType, seed string) (game *Game, err error) {
-	// parse seed into integer
-	var seedNum int64
-	for _, c := range seed {
-		seedNum += int64(c)
-	}
-
-	// generate world
-	tileGrid := world.NewTileGrid(seedNum)
-	if err = tileGrid.GenerateChunk(); err != nil {
-		return nil, fmt.Errorf("failed to generate world: %s", err)
-	}
-
 	// temp player name
 	var userName string
 
@@ -184,6 +172,19 @@ func NewGame(gameType GameType, seed string) (game *Game, err error) {
 			continue
 		}
 		break
+	}
+
+	// parse seed into integer
+	var seedNum int64
+	for _, c := range seed {
+		seedNum += int64(c)
+	}
+
+	// generate world
+	fmt.Printf("generating new world with a seed of \"%s\" (%d)", seed, seedNum)
+	tileGrid := world.NewTileGrid(seedNum)
+	if err = tileGrid.GenerateChunk(); err != nil {
+		return nil, fmt.Errorf("failed to generate world: %s", err)
 	}
 
 	// create new game instance
