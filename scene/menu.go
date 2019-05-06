@@ -47,7 +47,7 @@ func (m *MainMenu) Update(dt float64) {
 
 	case m.joinBtn.Clicked():
 		// create a new game layer
-		gameLayer, err := NewGame(Client)
+		gameLayer, err := NewGame(Client, "d")
 		if err != nil {
 			fmt.Printf("failed to create game layer: %s\n", err)
 			return
@@ -75,9 +75,10 @@ func (m *MainMenu) Draw() {
 
 // CreateGameMenu is the menu layer for creating/hosting a game.
 type CreateGameMenu struct {
-	uiContainer *ui.ScrollContainer
-	backBtn     *ui.Button
-	startBtn    *ui.Button
+	uiContainer   *ui.ScrollContainer
+	backBtn       *ui.Button
+	seedTextInput *ui.TextBox
+	startBtn      *ui.Button
 }
 
 // NewCreateGameMenu creates and initialises a new CreateGameMenu layer.
@@ -86,12 +87,13 @@ func NewCreateGameMenu() *CreateGameMenu {
 	container := ui.NewScrollContainer(ui.NewPadding(5), win.Bounds)
 
 	menu := &CreateGameMenu{
-		uiContainer: container,
-		backBtn:     ui.NewButton("Back", ui.Blue, colornames.White),
-		startBtn:    ui.NewButton("Start", ui.Green, colornames.White),
+		uiContainer:   container,
+		backBtn:       ui.NewButton("Back", ui.Blue, colornames.White),
+		seedTextInput: ui.NewTextBox("World Seed:", colornames.White, colornames.Black),
+		startBtn:      ui.NewButton("Start", ui.Green, colornames.White),
 	}
 
-	container.AddElement(menu.backBtn, menu.startBtn)
+	container.AddElement(menu.backBtn, menu.seedTextInput, menu.startBtn)
 	return menu
 }
 
@@ -103,12 +105,16 @@ func (m *CreateGameMenu) Update(dt float64) {
 		Push(NewMainMenu())
 
 	case m.startBtn.Clicked():
+		// parse seed into integer
+		seedInput := m.seedTextInput.Text()
+
 		// create a new game layer
-		gameLayer, err := NewGame(Server)
+		gameLayer, err := NewGame(Server, seedInput)
 		if err != nil {
 			fmt.Printf("failed to create game layer: %s\n", err)
 			return
 		}
+
 		// pop main menu and push game layer
 		Pop(Default)
 		Push(gameLayer)

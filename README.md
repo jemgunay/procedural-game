@@ -1,6 +1,6 @@
 # 2D Multiplayer Game Demo
 
-This is a multiplayer game test with the pixel game engine package.
+This is a cheeky multiplayer game test with the pixel game engine package.
 
 ## Build & Run
 
@@ -13,9 +13,6 @@ go build && ./client
 ## TODO
 
 - UI for starting/stopping/joining server.
-- Procedural road generation:
-    - Use perlin noise to pick random points on map.
-    - Join procedurally selected points with straight roads.
 - Procedurally generated houses with accessible interiors.
 - Continuous world tile generation upon exploring unseen territory.
 - Cars.

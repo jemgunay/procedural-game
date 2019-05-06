@@ -46,7 +46,6 @@ func Start() {
 		fmt.Printf("failed create new window: %s\n", err)
 		return
 	}
-	//win.SetSmooth(true)
 
 	// push a main menu layer to the scene
 	Push(NewMainMenu())
@@ -120,6 +119,7 @@ type Game struct {
 	players    *player.Store
 
 	cam           pixel.Matrix
+	seed          string
 	camScale      float64
 	prevMousePos  pixel.Vec
 	locked        bool
@@ -136,9 +136,15 @@ const (
 )
 
 // NewGame creates and initialises a new Game layer.
-func NewGame(gameType GameType) (game *Game, err error) {
+func NewGame(gameType GameType, seed string) (game *Game, err error) {
+	// parse seed into integer
+	var seedNum int64
+	for _, c := range seed {
+		seedNum += int64(c)
+	}
+
 	// generate world
-	tileGrid := world.NewTileGrid(100)
+	tileGrid := world.NewTileGrid(seedNum)
 	if err = tileGrid.GenerateChunk(); err != nil {
 		return nil, fmt.Errorf("failed to generate world: %s", err)
 	}
@@ -183,6 +189,7 @@ func NewGame(gameType GameType) (game *Game, err error) {
 	// create new game instance
 	game = &Game{
 		gameType: gameType,
+		seed:     seed,
 		tileGrid: tileGrid,
 		players:  player.NewStore(),
 		camScale: 0.5,

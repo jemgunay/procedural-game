@@ -254,6 +254,18 @@ type Button struct {
 	labelColourAlt pixel.RGBA
 }
 
+// NewButton creates and initialises a new Button.
+func NewButton(label string, bgColour, labelColour color.Color) *Button {
+	return &Button{
+		enabled:        true,
+		bgColour:       pixel.ToRGBA(bgColour),
+		bgColourAlt:    fadeColour(bgColour, btnFadeAlpha),
+		label:          label,
+		labelColour:    pixel.ToRGBA(labelColour),
+		labelColourAlt: fadeColour(labelColour, btnFadeAlpha),
+	}
+}
+
 // Enabled indicates if the button should be styled with normal or disabled colours.
 func (b *Button) Enabled() bool {
 	return b.enabled
@@ -315,7 +327,7 @@ func (b *Button) Draw(win *pixelgl.Window, bounds pixel.Rect) {
 	bg.Polygon(0)
 	bg.Draw(win)
 
-	// label text
+	// label
 	label.WriteString(b.label)
 	labelScaleFactor := bounds.H() / label.Bounds().H()
 	labelYOffset := (bounds.H() * 0.5) - (label.Bounds().H() * labelScaleFactor * 0.35)
@@ -326,18 +338,81 @@ func (b *Button) Draw(win *pixelgl.Window, bounds pixel.Rect) {
 	label.Draw(win, pixel.IM.Scaled(label.Orig, labelScaleFactor).Moved(labelPos))
 }
 
-// NewButton creates and initialises a new Button.
-func NewButton(label string, bgColour, labelColour color.Color) *Button {
-	return &Button{
-		enabled:        true,
-		bgColour:       pixel.ToRGBA(bgColour),
-		bgColourAlt:    fadeColour(bgColour, btnFadeAlpha),
-		label:          label,
-		labelColour:    pixel.ToRGBA(labelColour),
-		labelColourAlt: fadeColour(labelColour, btnFadeAlpha),
+type TextBox struct {
+	hasFocus bool
+
+	bgColour      pixel.RGBA
+	label         string
+	text          string
+	textColour    pixel.RGBA
+	textColourAlt pixel.RGBA
+}
+
+func NewTextBox(label string, bgColour, textColour color.Color) *TextBox {
+	return &TextBox{
+		bgColour:      pixel.ToRGBA(bgColour),
+		label:         label,
+		textColour:    pixel.ToRGBA(textColour),
+		textColourAlt: fadeColour(textColour, btnFadeAlpha),
 	}
 }
 
+func (t *TextBox) Draw(win *pixelgl.Window, bounds pixel.Rect) {
+	// background
+	bg := imdraw.New(nil)
+	bg.Push(
+		bounds.Min,
+		pixel.V(bounds.Min.X, bounds.Max.Y),
+		bounds.Max,
+		pixel.V(bounds.Max.X, bounds.Min.Y),
+	)
+	bg.Polygon(0)
+	bg.Draw(win)
+
+	// give input focus if clicked & lose focus if mouse clicked outside of input
+	if win.JustPressed(pixelgl.MouseButton1) {
+		t.hasFocus = bounds.Contains(win.MousePosition())
+	}
+
+	// store new text input if text box has focus
+	if t.hasFocus {
+		t.text += win.Typed()
+
+		switch {
+		// lose text input focus on enter key press
+		case win.JustPressed(pixelgl.KeyEnter), win.Repeated(pixelgl.KeyEnter):
+			t.hasFocus = false
+
+		// delete character on backspace key press
+		case win.JustPressed(pixelgl.KeyBackspace), win.Repeated(pixelgl.KeyBackspace):
+			if len(t.text) > 0 {
+				t.text = t.text[:len(t.text)-1]
+			}
+		}
+	}
+
+	// text
+	txt := text.New(pixel.ZV, basicFontAtlas)
+	txt.Color = t.textColour
+	txt.WriteString(t.text)
+
+	labelScaleFactor := bounds.H() / txt.Bounds().H()
+	labelYOffset := (bounds.H() * 0.5) - (txt.Bounds().H() * labelScaleFactor * 0.35)
+	labelXOffset := (bounds.W() * 0.5) - (txt.Bounds().W() * labelScaleFactor * 0.5)
+	labelPos := bounds.Min.Add(pixel.V(labelXOffset, labelYOffset))
+
+	txt.Draw(win, pixel.IM.Scaled(txt.Orig, labelScaleFactor).Moved(labelPos))
+}
+
+func (t *TextBox) SetText(text string) {
+	t.text = text
+}
+
+func (t *TextBox) Text() string {
+	return t.text
+}
+
+// applies an alpha value to the provided colour
 func fadeColour(colour color.Color, alpha float64) pixel.RGBA {
 	c := pixel.ToRGBA(colour)
 	c.A = alpha
