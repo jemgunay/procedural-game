@@ -129,6 +129,9 @@ func (c *ScrollContainer) Draw(win *pixelgl.Window) {
 	contentHeight := float64(len(c.elements)) * elementHeight
 	contentToBoundsRatio := bounds.H() / contentHeight
 	scrollBtnHeight := bounds.H() * contentToBoundsRatio
+	if scrollBtnHeight < bounds.H()/2 {
+		scrollBtnHeight = bounds.H()/2
+	}
 
 	// draw scroll bar background
 	scrollBarBG := imdraw.New(nil)
@@ -165,9 +168,9 @@ func (c *ScrollContainer) Draw(win *pixelgl.Window) {
 	// move scroll bar button to mouse Y
 	if c.scrollBarPressed {
 		y := win.MousePosition().Y + c.scrollBtnClickDeltaY
-		c.scrollBtnBounds.Min.Y = y - scrollBtnHeight
 		c.scrollBtnBounds.Max.Y = y
 	}
+	c.scrollBtnBounds.Min.Y = c.scrollBtnBounds.Max.Y - scrollBtnHeight
 
 	// prevent scrolling above permitted scroll area
 	if c.scrollBtnBounds.Max.Y > bounds.Max.Y {
