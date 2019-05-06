@@ -35,7 +35,7 @@ func Start() {
 	cfg := pixelgl.WindowConfig{
 		Title:     "Test Game",
 		Bounds:    pixel.R(0, 0, 1024, 768),
-		VSync:     true,
+		VSync:     false,
 		Resizable: true,
 	}
 
@@ -51,8 +51,10 @@ func Start() {
 	// push a main menu layer to the scene
 	Push(NewMainMenu())
 
-	// main game loop
+	// limit update cycles to 120 FPS
+	frameRateLimiter := time.Tick(time.Second / 120)
 	prevTimestamp := time.Now()
+	// main game loop
 	for !win.Closed() {
 		dt := time.Since(prevTimestamp).Seconds()
 		prevTimestamp = time.Now()
@@ -65,6 +67,7 @@ func Start() {
 			layer.Draw()
 		}
 		win.Update()
+		<-frameRateLimiter
 	}
 }
 

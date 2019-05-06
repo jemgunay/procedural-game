@@ -45,7 +45,7 @@ type Drawer interface {
 	Draw(win *pixelgl.Window, bounds pixel.Rect)
 }
 
-// FixedContainer is a structure which draws child UI components.
+// FixedContainer is a fixed size container which draws child UI components.
 type FixedContainer struct {
 	elements   []Drawer
 	padding    Padding
@@ -85,7 +85,7 @@ func (c *FixedContainer) Draw(win *pixelgl.Window) {
 	}
 }
 
-// ScrollContainer is a structure which draws child UI components.
+// ScrollContainer is a scrollable UI container which draws child UI components.
 type ScrollContainer struct {
 	elements   []Drawer
 	padding    Padding
