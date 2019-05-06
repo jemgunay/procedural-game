@@ -143,7 +143,7 @@ func NewGame(gameType GameType) (game *Game, err error) {
 	// temp player name
 	var userName string
 
-	// start server if
+	// start server or client
 	if gameType == Server {
 		if err = server.Start(":9000"); err != nil {
 			return nil, fmt.Errorf("server failed to start: %s", err)
@@ -166,8 +166,7 @@ func NewGame(gameType GameType) (game *Game, err error) {
 
 	// wait for register success
 	for {
-		msg := client.Poll()
-		switch msg.Type {
+		switch msg := client.Poll(); msg.Type {
 		case "register_success":
 			fmt.Printf("user UUID: %s\n", msg.Value)
 		case "register_failure", "connect_failure":

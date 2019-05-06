@@ -87,7 +87,7 @@ func NewCreateGameMenu() *CreateGameMenu {
 		startBtn:    ui.NewButton("Start", ui.Blue, colornames.White),
 	}
 
-	container.AddElement(menu.startBtn, menu.startBtn, menu.startBtn, menu.startBtn, menu.startBtn, menu.startBtn, menu.startBtn)
+	container.AddElement(menu.startBtn, menu.startBtn, menu.startBtn, menu.startBtn, menu.startBtn, menu.startBtn)
 
 	return menu
 }

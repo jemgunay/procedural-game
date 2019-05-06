@@ -19,6 +19,3 @@ func StartClient() {
 	// start the scene
 	scene.Start()
 }
-
-// StartServerOnly is the server only instance entry point.
-func StartServerOnly() {}

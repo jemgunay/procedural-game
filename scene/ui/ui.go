@@ -129,6 +129,7 @@ func (c *ScrollContainer) Draw(win *pixelgl.Window) {
 	contentHeight := float64(len(c.elements)) * elementHeight
 	contentToBoundsRatio := bounds.H() / contentHeight
 	scrollBtnHeight := bounds.H() * contentToBoundsRatio
+	// cap min scroll button height to prevent it getting too small on smaller bounds heights
 	if scrollBtnHeight < bounds.H()/2 {
 		scrollBtnHeight = bounds.H()/2
 	}
@@ -151,56 +152,64 @@ func (c *ScrollContainer) Draw(win *pixelgl.Window) {
 		c.scrollBtnBounds.Max.Y = bounds.Max.Y
 	}
 
-	// update scroll X pos in case bounds are horizontally resized
-	c.scrollBtnBounds.Min.X = bounds.Max.X - c.scrollBarWidth
-	c.scrollBtnBounds.Max.X = bounds.Max.X
+	var contentScrollOffset float64
+	// only draw scroll bar button and offset content Y if the content height is greater than the bounds height
+	if contentHeight > bounds.H() {
+		// update scroll X pos in case bounds are horizontally resized
+		c.scrollBtnBounds.Min.X = bounds.Max.X - c.scrollBarWidth
+		c.scrollBtnBounds.Max.X = bounds.Max.X
 
-	// on scroll bar button mouse click or release
-	if win.JustPressed(pixelgl.MouseButton1) && c.scrollBtnBounds.Contains(win.MousePosition()) {
-		c.scrollBarPressed = true
-		c.scrollBtnClickDeltaY = c.scrollBtnBounds.Max.Y - win.MousePosition().Y
-	}
-	if win.JustReleased(pixelgl.MouseButton1) {
-		c.scrollBarPressed = false
-		c.scrollBtnClickDeltaY = 0
-	}
+		// on scroll bar button mouse click/release
+		if win.JustPressed(pixelgl.MouseButton1) && c.scrollBtnBounds.Contains(win.MousePosition()) {
+			c.scrollBarPressed = true
+			c.scrollBtnClickDeltaY = c.scrollBtnBounds.Max.Y - win.MousePosition().Y
+		}
+		if win.JustReleased(pixelgl.MouseButton1) {
+			c.scrollBarPressed = false
+			c.scrollBtnClickDeltaY = 0
+		}
 
-	// move scroll bar button to mouse Y
-	if c.scrollBarPressed {
-		y := win.MousePosition().Y + c.scrollBtnClickDeltaY
-		c.scrollBtnBounds.Max.Y = y
-	}
-	c.scrollBtnBounds.Min.Y = c.scrollBtnBounds.Max.Y - scrollBtnHeight
-
-	// prevent scrolling above permitted scroll area
-	if c.scrollBtnBounds.Max.Y > bounds.Max.Y {
-		c.scrollBtnBounds.Max.Y = bounds.Max.Y
+		// move scroll bar button to mouse Y
+		if c.scrollBarPressed {
+			c.scrollBtnBounds.Max.Y = win.MousePosition().Y + c.scrollBtnClickDeltaY
+		} else {
+			// handle mouse scroll button - scroll distance is the height of one element
+			if win.MouseScroll().Y != 0 {
+				c.scrollBtnBounds.Max.Y += win.MouseScroll().Y * (bounds.H() / float64(len(c.elements)))
+			}
+		}
 		c.scrollBtnBounds.Min.Y = c.scrollBtnBounds.Max.Y - scrollBtnHeight
-	} else if c.scrollBtnBounds.Min.Y < bounds.Min.Y {
-		c.scrollBtnBounds.Min.Y = bounds.Min.Y
-		c.scrollBtnBounds.Max.Y = c.scrollBtnBounds.Min.Y + scrollBtnHeight
-	}
 
-	// draw scroll bar button
-	scrollBtn := imdraw.New(nil)
-	scrollBtn.Color = c.scrollBtnColour
-	if c.scrollBarPressed {
-		scrollBtn.Color = c.scrollBtnColourAlt
-	}
-	scrollBtn.Push(
-		pixel.V(bounds.Max.X-c.scrollBarWidth, c.scrollBtnBounds.Max.Y),
-		pixel.V(bounds.Max.X, c.scrollBtnBounds.Max.Y),
-		pixel.V(bounds.Max.X, c.scrollBtnBounds.Max.Y-scrollBtnHeight),
-		pixel.V(bounds.Max.X-c.scrollBarWidth, c.scrollBtnBounds.Max.Y-scrollBtnHeight),
-	)
-	scrollBtn.Polygon(0)
-	scrollBtn.Draw(win)
+		// prevent scrolling above permitted scroll area
+		if c.scrollBtnBounds.Max.Y > bounds.Max.Y {
+			c.scrollBtnBounds.Max.Y = bounds.Max.Y
+			c.scrollBtnBounds.Min.Y = c.scrollBtnBounds.Max.Y - scrollBtnHeight
+		} else if c.scrollBtnBounds.Min.Y < bounds.Min.Y {
+			c.scrollBtnBounds.Min.Y = bounds.Min.Y
+			c.scrollBtnBounds.Max.Y = c.scrollBtnBounds.Min.Y + scrollBtnHeight
+		}
 
-	// determine how far to offset content Y based on scroll position
-	contentScrollDeltaMax := contentHeight - bounds.H()
-	scrollBarMaxScrolledDist := bounds.H() - scrollBtnHeight
-	currentScrolledPercent := (bounds.Max.Y - c.scrollBtnBounds.Max.Y) / scrollBarMaxScrolledDist
-	contentScrollOffset := contentScrollDeltaMax * currentScrolledPercent
+		// draw scroll bar button
+		scrollBtn := imdraw.New(nil)
+		scrollBtn.Color = c.scrollBtnColour
+		if c.scrollBarPressed {
+			scrollBtn.Color = c.scrollBtnColourAlt
+		}
+		scrollBtn.Push(
+			pixel.V(bounds.Max.X-c.scrollBarWidth, c.scrollBtnBounds.Max.Y),
+			pixel.V(bounds.Max.X, c.scrollBtnBounds.Max.Y),
+			pixel.V(bounds.Max.X, c.scrollBtnBounds.Max.Y-scrollBtnHeight),
+			pixel.V(bounds.Max.X-c.scrollBarWidth, c.scrollBtnBounds.Max.Y-scrollBtnHeight),
+		)
+		scrollBtn.Polygon(0)
+		scrollBtn.Draw(win)
+
+		// determine how far to offset content Y based on scroll position
+		contentScrollDeltaMax := contentHeight - bounds.H()
+		scrollBarMaxScrolledDist := bounds.H() - scrollBtnHeight
+		currentScrolledPercent := (bounds.Max.Y - c.scrollBtnBounds.Max.Y) / scrollBarMaxScrolledDist
+		contentScrollOffset = contentScrollDeltaMax * currentScrolledPercent
+	}
 
 	// draw elements
 	for i, element := range c.elements {
