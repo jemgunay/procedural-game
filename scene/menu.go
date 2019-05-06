@@ -73,27 +73,35 @@ func (m *MainMenu) Draw() {
 	m.uiContainer.Draw(win)
 }
 
+// CreateGameMenu is the menu layer for creating/hosting a game.
 type CreateGameMenu struct {
 	uiContainer *ui.ScrollContainer
+	backBtn     *ui.Button
 	startBtn    *ui.Button
 }
 
+// NewCreateGameMenu creates and initialises a new CreateGameMenu layer.
 func NewCreateGameMenu() *CreateGameMenu {
 	// create container sized half the window height
 	container := ui.NewScrollContainer(ui.NewPadding(5), win.Bounds)
 
 	menu := &CreateGameMenu{
 		uiContainer: container,
-		startBtn:    ui.NewButton("Start", ui.Blue, colornames.White),
+		backBtn:     ui.NewButton("Back", ui.Blue, colornames.White),
+		startBtn:    ui.NewButton("Start", ui.Green, colornames.White),
 	}
 
-	container.AddElement(menu.startBtn, menu.startBtn, menu.startBtn, menu.startBtn, menu.startBtn, menu.startBtn)
-
+	container.AddElement(menu.backBtn, menu.startBtn)
 	return menu
 }
 
+// Update updates the game creation menu layer logic.
 func (m *CreateGameMenu) Update(dt float64) {
 	switch {
+	case win.JustPressed(pixelgl.KeyEscape), m.backBtn.Clicked():
+		Pop(Default)
+		Push(NewMainMenu())
+
 	case m.startBtn.Clicked():
 		// create a new game layer
 		gameLayer, err := NewGame(Server)
@@ -105,12 +113,9 @@ func (m *CreateGameMenu) Update(dt float64) {
 		Pop(Default)
 		Push(gameLayer)
 	}
-
-	if win.JustPressed(pixelgl.KeyEscape) {
-		win.SetClosed(true)
-	}
 }
 
+// Draw draws the game creation menu layer logic.
 func (m *CreateGameMenu) Draw() {
 	win.SetMatrix(pixel.IM)
 

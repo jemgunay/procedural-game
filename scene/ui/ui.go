@@ -8,7 +8,6 @@ import (
 	"github.com/faiface/pixel/imdraw"
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/faiface/pixel/text"
-	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/basicfont"
 )
 
@@ -41,6 +40,7 @@ func NewPadding(values ...float64) Padding {
 	return Padding{}
 }
 
+// Drawer is the interface which defines a UI component that can be drawn to a window given its container's bounds.
 type Drawer interface {
 	Draw(win *pixelgl.Window, bounds pixel.Rect)
 }
@@ -106,8 +106,8 @@ func NewScrollContainer(padding Padding, boundsFunc func() pixel.Rect) *ScrollCo
 		padding:         padding,
 		boundsFunc:      boundsFunc,
 		scrollBarWidth:  25,
-		scrollBarColour: pixel.ToRGBA(colornames.Aliceblue),
-		scrollBtnColour: pixel.ToRGBA(colornames.Navajowhite),
+		scrollBarColour: pixel.ToRGBA(LightBlue),
+		scrollBtnColour: pixel.ToRGBA(Orange),
 	}
 	s.scrollBtnColourAlt = fadeColour(s.scrollBtnColour, 0.9)
 	return s
@@ -124,14 +124,14 @@ func (c *ScrollContainer) Draw(win *pixelgl.Window) {
 
 	// draw elements at fixed size
 	elementWidth := bounds.W()
-	elementHeight := 200.0
+	elementHeight := 170.0
 
 	contentHeight := float64(len(c.elements)) * elementHeight
 	contentToBoundsRatio := bounds.H() / contentHeight
 	scrollBtnHeight := bounds.H() * contentToBoundsRatio
 	// cap min scroll button height to prevent it getting too small on smaller bounds heights
 	if scrollBtnHeight < bounds.H()/2 {
-		scrollBtnHeight = bounds.H()/2
+		scrollBtnHeight = bounds.H() / 2
 	}
 
 	// draw scroll bar background
@@ -230,11 +230,13 @@ const (
 	btnFadeAlpha = 0.85
 )
 
+// Colour presets.
 var (
-	// Colours
-	Blue  = color.RGBA{175, 238, 238, 243}
-	Green = color.RGBA{152, 251, 152, 243}
-	Red   = color.RGBA{219, 112, 147, 243}
+	Blue      = color.RGBA{175, 238, 238, 243}
+	Green     = color.RGBA{152, 251, 152, 243}
+	Red       = color.RGBA{219, 112, 147, 243}
+	Orange    = color.RGBA{255, 222, 173, 255}
+	LightBlue = color.RGBA{240, 248, 255, 255}
 
 	btnColourDisabled    = pixel.RGB(0.9, 0.9, 0.9)
 	btnColourDisabledAlt = pixel.RGB(0.8, 0.8, 0.8)
