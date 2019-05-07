@@ -42,20 +42,14 @@ func NewMainMenu() *MainMenu {
 func (m *MainMenu) Update(dt float64) {
 	switch {
 	case m.createBtn.Clicked():
-		// pop main menu and push game layer
+		// pop main menu and push create game layer
 		Pop(Default)
 		Push(NewCreateGameMenu())
 
 	case m.joinBtn.Clicked():
-		// create a new game layer
-		gameLayer, err := NewGame(Client, "d", "localhost:9000")
-		if err != nil {
-			fmt.Printf("failed to create game layer: %s\n", err)
-			return
-		}
-		// pop main menu and push game layer
+		// pop main menu and push join game layer
 		Pop(Default)
-		Push(gameLayer)
+		Push(NewJoinGameMenu())
 
 	case m.settingsBtn.Clicked():
 		m.settingsBtn.ToggleEnabled()
@@ -132,6 +126,60 @@ func (m *CreateGameMenu) Update(dt float64) {
 
 // Draw draws the game creation menu layer logic.
 func (m *CreateGameMenu) Draw() {
+	win.SetMatrix(pixel.IM)
+
+	win.Clear(colornames.White)
+	m.uiContainer.Draw(win)
+}
+
+// JoinGameMenu is the menu layer for joining an existing game.
+type JoinGameMenu struct {
+	uiContainer       *ui.ScrollContainer
+	backBtn           *ui.Button
+	hostAddrTextInput *ui.TextBox
+	joinBtn           *ui.Button
+}
+
+// NewJoinGameMenu creates and initialises a new JoinGameMenu layer.
+func NewJoinGameMenu() *JoinGameMenu {
+	// create container sized half the window height
+	container := ui.NewScrollContainer(ui.NewPadding(5), win.Bounds)
+
+	menu := &JoinGameMenu{
+		uiContainer:       container,
+		backBtn:           ui.NewButton("Back", ui.Blue, colornames.White),
+		hostAddrTextInput: ui.NewTextBox("Server Address", colornames.White, colornames.Black),
+		joinBtn:           ui.NewButton("Join", ui.Green, colornames.White),
+	}
+	menu.hostAddrTextInput.SetText("localhost:9000")
+
+	container.AddElement(menu.backBtn, menu.hostAddrTextInput, menu.joinBtn)
+	return menu
+}
+
+// Update updates the game join menu layer logic.
+func (m *JoinGameMenu) Update(dt float64) {
+	switch {
+	case win.JustPressed(pixelgl.KeyEscape), m.backBtn.Clicked():
+		Pop(Default)
+		Push(NewMainMenu())
+
+	case m.joinBtn.Clicked():
+		// create a new game layer
+		gameLayer, err := NewGame(Client, "d", m.hostAddrTextInput.Text())
+		if err != nil {
+			fmt.Printf("failed to create game layer: %s\n", err)
+			return
+		}
+
+		// pop main menu and push game layer
+		Pop(Default)
+		Push(gameLayer)
+	}
+}
+
+// Draw draws the game creation menu layer logic.
+func (m *JoinGameMenu) Draw() {
 	win.SetMatrix(pixel.IM)
 
 	win.Clear(colornames.White)
