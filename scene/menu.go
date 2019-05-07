@@ -2,6 +2,7 @@ package scene
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
@@ -47,7 +48,7 @@ func (m *MainMenu) Update(dt float64) {
 
 	case m.joinBtn.Clicked():
 		// create a new game layer
-		gameLayer, err := NewGame(Client, "d")
+		gameLayer, err := NewGame(Client, "d", "localhost:9000")
 		if err != nil {
 			fmt.Printf("failed to create game layer: %s\n", err)
 			return
@@ -78,6 +79,7 @@ type CreateGameMenu struct {
 	uiContainer   *ui.ScrollContainer
 	backBtn       *ui.Button
 	seedTextInput *ui.TextBox
+	portTextInput *ui.TextBox
 	startBtn      *ui.Button
 }
 
@@ -89,11 +91,13 @@ func NewCreateGameMenu() *CreateGameMenu {
 	menu := &CreateGameMenu{
 		uiContainer:   container,
 		backBtn:       ui.NewButton("Back", ui.Blue, colornames.White),
-		seedTextInput: ui.NewTextBox("World Seed:", colornames.White, colornames.Black),
+		seedTextInput: ui.NewTextBox("World Seed", colornames.White, colornames.Black),
+		portTextInput: ui.NewTextBox("Port", colornames.White, colornames.Black),
 		startBtn:      ui.NewButton("Start", ui.Green, colornames.White),
 	}
+	menu.portTextInput.SetText("9000")
 
-	container.AddElement(menu.backBtn, menu.seedTextInput, menu.startBtn)
+	container.AddElement(menu.backBtn, menu.seedTextInput, menu.portTextInput, menu.startBtn)
 	return menu
 }
 
@@ -107,9 +111,14 @@ func (m *CreateGameMenu) Update(dt float64) {
 	case m.startBtn.Clicked():
 		// parse seed into integer
 		seedInput := m.seedTextInput.Text()
+		portInput, err := strconv.ParseUint(m.portTextInput.Text(), 10, 64)
+		if err != nil {
+			fmt.Println("invalid port provided")
+			return
+		}
 
 		// create a new game layer
-		gameLayer, err := NewGame(Server, seedInput)
+		gameLayer, err := NewGame(Server, seedInput, fmt.Sprintf(":%d", portInput))
 		if err != nil {
 			fmt.Printf("failed to create game layer: %s\n", err)
 			return

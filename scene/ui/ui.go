@@ -394,17 +394,30 @@ func (t *TextBox) Draw(win *pixelgl.Window, bounds pixel.Rect) {
 		}
 	}
 
-	// text
-	txt := text.New(pixel.ZV, basicFontAtlas)
-	txt.Color = t.textColour
-	txt.WriteString(t.text)
+	// label
+	/*label := text.New(pixel.ZV, basicFontAtlas)
+	label.Color = t.textColour
+	label.WriteString(t.label)
 
-	labelScaleFactor := bounds.H() / txt.Bounds().H()
-	labelYOffset := (bounds.H() * 0.5) - (txt.Bounds().H() * labelScaleFactor * 0.35)
-	labelXOffset := (bounds.W() * 0.5) - (txt.Bounds().W() * labelScaleFactor * 0.5)
+	labelHeight := bounds.H() * 0.3
+	labelScaleFactor := labelHeight / label.Bounds().H()
+	labelYOffset := (labelHeight * 0.5) - (label.Bounds().H() * labelScaleFactor * 0.35)
+	labelXOffset := (bounds.W() * 0.5) - (label.Bounds().W() * labelScaleFactor * 0.5)
 	labelPos := bounds.Min.Add(pixel.V(labelXOffset, labelYOffset))
 
-	txt.Draw(win, pixel.IM.Scaled(txt.Orig, labelScaleFactor).Moved(labelPos))
+	label.Draw(win, pixel.IM.Scaled(label.Orig, labelScaleFactor).Moved(labelPos))*/
+
+	// text
+	inputText := text.New(pixel.ZV, basicFontAtlas)
+	inputText.Color = t.textColour
+	inputText.WriteString(t.text)
+
+	labelScaleFactor := bounds.H() / inputText.Bounds().H()
+	labelYOffset := (bounds.H() * 0.5) - (inputText.Bounds().H() * labelScaleFactor * 0.35)
+	labelXOffset := (bounds.W() * 0.5) - (inputText.Bounds().W() * labelScaleFactor * 0.5)
+	labelPos := bounds.Min.Add(pixel.V(labelXOffset, labelYOffset))
+
+	inputText.Draw(win, pixel.IM.Scaled(inputText.Orig, labelScaleFactor).Moved(labelPos))
 }
 
 // SetText sets the text box input value.

@@ -136,13 +136,13 @@ const (
 )
 
 // NewGame creates and initialises a new Game layer.
-func NewGame(gameType GameType, seed string) (game *Game, err error) {
+func NewGame(gameType GameType, seed string, addr string) (game *Game, err error) {
 	// temp player name
 	var userName string
 
 	// start server or client
 	if gameType == Server {
-		if err = server.Start(":9000"); err != nil {
+		if err = server.Start(addr); err != nil {
 			return nil, fmt.Errorf("server failed to start: %s", err)
 		}
 		userName = "jemgunay"
@@ -152,7 +152,7 @@ func NewGame(gameType GameType, seed string) (game *Game, err error) {
 	}
 
 	// connect to server
-	if err = client.Start("localhost:9000"); err != nil {
+	if err = client.Start(addr); err != nil {
 		return nil, fmt.Errorf("client failed to start: %s", err)
 	}
 
@@ -181,7 +181,7 @@ func NewGame(gameType GameType, seed string) (game *Game, err error) {
 	}
 
 	// generate world
-	fmt.Printf("generating new world with a seed of \"%s\" (%d)", seed, seedNum)
+	fmt.Printf("generating new world with a seed of \"%s\" (%d)\n", seed, seedNum)
 	tileGrid := world.NewTileGrid(seedNum)
 	if err = tileGrid.GenerateChunk(); err != nil {
 		return nil, fmt.Errorf("failed to generate world: %s", err)
