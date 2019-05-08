@@ -7,6 +7,7 @@ import (
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/jemgunay/game/scene/ui"
+	"github.com/jemgunay/game/server"
 	"golang.org/x/image/colornames"
 )
 
@@ -70,11 +71,12 @@ func (m *MainMenu) Draw() {
 
 // CreateGameMenu is the menu layer for creating/hosting a game.
 type CreateGameMenu struct {
-	uiContainer   *ui.ScrollContainer
-	backBtn       *ui.Button
-	seedTextInput *ui.TextBox
-	portTextInput *ui.TextBox
-	startBtn      *ui.Button
+	uiContainer         *ui.ScrollContainer
+	backBtn             *ui.Button
+	seedTextInput       *ui.TextBox
+	portTextInput       *ui.TextBox
+	playerNameTextInput *ui.TextBox
+	startBtn            *ui.Button
 }
 
 // NewCreateGameMenu creates and initialises a new CreateGameMenu layer.
@@ -83,15 +85,16 @@ func NewCreateGameMenu() *CreateGameMenu {
 	container := ui.NewScrollContainer(ui.NewPadding(5), win.Bounds)
 
 	menu := &CreateGameMenu{
-		uiContainer:   container,
-		backBtn:       ui.NewButton("Back", ui.Blue, colornames.White),
-		seedTextInput: ui.NewTextBox("World Seed", colornames.White, colornames.Black),
-		portTextInput: ui.NewTextBox("Port", colornames.White, colornames.Black),
-		startBtn:      ui.NewButton("Start", ui.Green, colornames.White),
+		uiContainer:         container,
+		backBtn:             ui.NewButton("Back", ui.Blue, colornames.White),
+		seedTextInput:       ui.NewTextBox("World Seed", colornames.White, colornames.Black),
+		portTextInput:       ui.NewTextBox("Port", colornames.White, colornames.Black),
+		playerNameTextInput: ui.NewTextBox("Player Name", colornames.White, colornames.Black),
+		startBtn:            ui.NewButton("Start", ui.Green, colornames.White),
 	}
 	menu.portTextInput.SetText("9000")
 
-	container.AddElement(menu.backBtn, menu.seedTextInput, menu.portTextInput, menu.startBtn)
+	container.AddElement(menu.backBtn, menu.seedTextInput, menu.portTextInput, menu.playerNameTextInput, menu.startBtn)
 	return menu
 }
 
@@ -111,8 +114,14 @@ func (m *CreateGameMenu) Update(dt float64) {
 			return
 		}
 
+		// start server or client
+		if err = server.Start(m.playerNameTextInput.Text(), seedInput); err != nil {
+			fmt.Printf("server failed to start: %s\n", err)
+			return
+		}
+
 		// create a new game layer
-		gameLayer, err := NewGame(Server, seedInput, fmt.Sprintf(":%d", portInput))
+		gameLayer, err := NewGame(Server, fmt.Sprintf(":%d", portInput), m.playerNameTextInput.Text())
 		if err != nil {
 			fmt.Printf("failed to create game layer: %s\n", err)
 			return
@@ -134,10 +143,11 @@ func (m *CreateGameMenu) Draw() {
 
 // JoinGameMenu is the menu layer for joining an existing game.
 type JoinGameMenu struct {
-	uiContainer       *ui.ScrollContainer
-	backBtn           *ui.Button
-	hostAddrTextInput *ui.TextBox
-	joinBtn           *ui.Button
+	uiContainer         *ui.ScrollContainer
+	backBtn             *ui.Button
+	hostAddrTextInput   *ui.TextBox
+	playerNameTextInput *ui.TextBox
+	joinBtn             *ui.Button
 }
 
 // NewJoinGameMenu creates and initialises a new JoinGameMenu layer.
@@ -146,14 +156,15 @@ func NewJoinGameMenu() *JoinGameMenu {
 	container := ui.NewScrollContainer(ui.NewPadding(5), win.Bounds)
 
 	menu := &JoinGameMenu{
-		uiContainer:       container,
-		backBtn:           ui.NewButton("Back", ui.Blue, colornames.White),
-		hostAddrTextInput: ui.NewTextBox("Server Address", colornames.White, colornames.Black),
-		joinBtn:           ui.NewButton("Join", ui.Green, colornames.White),
+		uiContainer:         container,
+		backBtn:             ui.NewButton("Back", ui.Blue, colornames.White),
+		hostAddrTextInput:   ui.NewTextBox("Server Address", colornames.White, colornames.Black),
+		playerNameTextInput: ui.NewTextBox("Player Name", colornames.White, colornames.Black),
+		joinBtn:             ui.NewButton("Join", ui.Green, colornames.White),
 	}
 	menu.hostAddrTextInput.SetText("localhost:9000")
 
-	container.AddElement(menu.backBtn, menu.hostAddrTextInput, menu.joinBtn)
+	container.AddElement(menu.backBtn, menu.hostAddrTextInput, menu.playerNameTextInput, menu.joinBtn)
 	return menu
 }
 
@@ -166,7 +177,7 @@ func (m *JoinGameMenu) Update(dt float64) {
 
 	case m.joinBtn.Clicked():
 		// create a new game layer
-		gameLayer, err := NewGame(Client, "d", m.hostAddrTextInput.Text())
+		gameLayer, err := NewGame(Client, "d", m.hostAddrTextInput.Text(), m.playerNameTextInput.Text())
 		if err != nil {
 			fmt.Printf("failed to create game layer: %s\n", err)
 			return

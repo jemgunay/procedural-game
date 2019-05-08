@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net"
 	"sync"
 	"unicode"
@@ -110,6 +111,9 @@ func (d *UserDB) Create(username string, conn net.Conn) (User, error) {
 	if err != nil {
 		return newUser, err
 	}
+
+	// set initial random position
+	newUser.posRotStr = fmt.Sprintf("%f|%f|%f", float64(rand.Intn(8000)), float64(rand.Intn(8000)), 0.0)
 
 	// insert new user into DB
 	d.Lock()

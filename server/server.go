@@ -7,19 +7,24 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
+
+	"github.com/faiface/pixel"
 )
 
 var (
 	listener net.Listener
 	stopChan chan struct{}
 
-	userDB UserDB
+	userDB    UserDB
+	worldSeed string
 )
 
 // Start starts the TCP server and polls for incoming TCP connections.
-func Start(addr string) error {
-	stopChan = make(chan struct{})
+func Start(addr, seed string) error {
+	worldSeed = seed
+	stopChan = make(chan struct{}, 1)
 	userDB = UserDB{
 		users: make(map[string]User),
 	}
@@ -38,26 +43,25 @@ func Start(addr string) error {
 		defer listener.Close()
 
 		for {
-			select {
-			case <-stopChan:
-				// shutdown server
-				break
+			// listen for an incoming connection
+			conn, err := listener.Accept()
+			if err != nil {
+				select {
+				case <-stopChan:
+					// shutdown server
+					// TODO: broadcast shutdown to all users
+					// TODO: add waitgroup to complete all connections before killing server so that shutdown messages can be sent to all clients
+					fmt.Println("TCP server shut down")
+					return
 
-			default:
-				// listen for an incoming connection
-				conn, err := listener.Accept()
-				if err != nil {
+				default:
 					fmt.Printf("failed to accept connection: %s\n", err)
-					break
 				}
-				// handle connection
-				go handleConn(conn)
 			}
+			// handle connection
+			go handleConn(conn)
 		}
 
-		// TODO: broadcast shutdown to all users
-		// TODO: add waitgroup to complete all connections before killing server so that shutdown messages can be sent to all clients
-		fmt.Println("TCP server shut down")
 	}()
 
 	return nil
@@ -66,6 +70,7 @@ func Start(addr string) error {
 // Shutdown gracefully shuts down the TCP server.
 func Shutdown() {
 	stopChan <- struct{}{}
+	listener.Close()
 	// TODO: wg.Wait()
 }
 
@@ -73,6 +78,38 @@ func Shutdown() {
 type Message struct {
 	Type  string `json:"type"`
 	Value string `json:"val,omitempty"`
+}
+
+func (m *Message) Unpack() (map[string]interface{}, error) {
+	components := strings.Split(m.Value, "|")
+	switch m.Type {
+	case "pos":
+		// validation
+		if len(components) != 4 {
+			return nil, errors.New("incorrect pos component count")
+		}
+		x, err := strconv.ParseFloat(components[1], 64)
+		if err != nil {
+			return nil, errors.New("failed to parse X")
+		}
+		y, err := strconv.ParseFloat(components[2], 64)
+		if err != nil {
+			return nil, errors.New("failed to parse Y")
+		}
+		rot, err := strconv.ParseFloat(components[3], 64)
+		if err != nil {
+			return nil, errors.New("failed to parse rot")
+		}
+		// unpacked response
+		unpacked := map[string]interface{}{
+			"name": components[0],
+			"pos":  pixel.V(x, y),
+			"rot":  rot,
+		}
+		return unpacked, nil
+	}
+
+	return nil, fmt.Errorf("unsupported message type supplied: %s", m.Type)
 }
 
 // handles the processing and maintenance of a connection between the server and a single game client.
@@ -154,7 +191,7 @@ func establishUser(msg Message, conn net.Conn) (user User) {
 		// respond with register success
 		user.Send(Message{
 			Type:  "register_success",
-			Value: user.uuid,
+			Value: worldSeed + "|" + user.uuid + "/" + user.posRotStr,
 		})
 
 	case "connect":
@@ -167,7 +204,8 @@ func establishUser(msg Message, conn net.Conn) (user User) {
 
 		// respond with connect success
 		user.Send(Message{
-			Type: "connect_success",
+			Type:  "connect_success",
+			Value: user.posRotStr,
 		})
 
 	default:

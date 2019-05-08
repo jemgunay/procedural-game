@@ -10,9 +10,9 @@ import (
 
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
-	"github.com/jemgunay/game/client"
 	"golang.org/x/image/colornames"
 
+	"github.com/jemgunay/game/client"
 	"github.com/jemgunay/game/player"
 	"github.com/jemgunay/game/server"
 	"github.com/jemgunay/game/world"
@@ -136,21 +136,7 @@ const (
 )
 
 // NewGame creates and initialises a new Game layer.
-func NewGame(gameType GameType, seed string, addr string) (game *Game, err error) {
-	// temp player name
-	var userName string
-
-	// start server or client
-	if gameType == Server {
-		if err = server.Start(addr); err != nil {
-			return nil, fmt.Errorf("server failed to start: %s", err)
-		}
-		userName = "jemgunay"
-	} else {
-		// TODO: remove this test username
-		userName = "willyG"
-	}
-
+func NewGame(gameType GameType, addr string, playerName string) (game *Game, err error) {
 	// connect to server
 	if err = client.Start(addr); err != nil {
 		return nil, fmt.Errorf("client failed to start: %s", err)
@@ -158,16 +144,33 @@ func NewGame(gameType GameType, seed string, addr string) (game *Game, err error
 
 	client.Send(server.Message{
 		Type:  "register",
-		Value: userName,
+		Value: playerName,
 	})
 
 	// wait for register success
+	var (
+		seed, uuid string, pos,
+		rot float64
+	)
 	for {
 		switch msg := client.Poll(); msg.Type {
 		case "register_success":
-			fmt.Printf("user UUID: %s\n", msg.Value)
+			components := strings.Split(msg.Value, "|")
+			if len(components) != 3 {
+				return nil, errors.New("malformed register_success response")
+			}
+			seed = components[1]
+			uuid, pos, rot, err = splitPosReq(components[2])
+			if err != nil {
+				return nil, err
+			}
+
+			fmt.Printf("user UUID: %s\n", uuid)
+
 		case "register_failure", "connect_failure":
+			server.Shutdown()
 			return nil, errors.New(msg.Value)
+
 		default:
 			continue
 		}
@@ -184,6 +187,7 @@ func NewGame(gameType GameType, seed string, addr string) (game *Game, err error
 	fmt.Printf("generating new world with a seed of \"%s\" (%d)\n", seed, seedNum)
 	tileGrid := world.NewTileGrid(seedNum)
 	if err = tileGrid.GenerateChunk(); err != nil {
+		server.Shutdown()
 		return nil, fmt.Errorf("failed to generate world: %s", err)
 	}
 
@@ -197,11 +201,12 @@ func NewGame(gameType GameType, seed string, addr string) (game *Game, err error
 	}
 
 	// create main player
-	game.mainPlayer, err = game.players.Add(userName)
+	game.mainPlayer, err = game.players.Add(playerName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create player: %s\n", err)
+		return nil, fmt.Errorf("failed to create player: %s", err)
 	}
-	game.mainPlayer.SetPos(pixel.V(4000, 4000))
+	game.mainPlayer.SetPos(pos)
+	game.mainPlayer.SetOrientation(rot)
 
 	// receive and process incoming requests from the server
 	go game.processServerUpdates()
@@ -216,7 +221,8 @@ func (g *Game) processServerUpdates() {
 		switch msg := client.Poll(); msg.Type {
 		// new player joined the game
 		case "user_joined":
-			if _, err := g.players.Add(msg.Value); err != nil {
+			_, err := g.players.Add(msg.Value)
+			if err != nil {
 				break
 			}
 			fmt.Println(msg.Value + " joined the game!")
