@@ -382,27 +382,24 @@ func (t *TextBox) Draw(win *pixelgl.Window, bounds pixel.Rect) {
 	if win.JustPressed(pixelgl.MouseButton1) {
 		t.hasFocus = bounds.Contains(win.MousePosition())
 		if t.hasFocus {
-			t.cursorLastTick = time.Now()
-			t.cursorChar = "|"
+			t.setCursorState("|")
 		} else {
-			t.cursorChar = ""
+			t.setCursorState("")
 		}
 	}
 
 	// store new text input if text box has focus
 	if t.hasFocus {
 		if time.Since(t.cursorLastTick) >= textBoxTickerDuration {
-			t.cursorLastTick = time.Now()
 			if t.cursorChar == "|" {
-				t.cursorChar = " "
+				t.setCursorState(" ")
 			} else {
-				t.cursorChar = "|"
+				t.setCursorState("|")
 			}
 		}
 		newText := win.Typed()
 		if newText != "" {
-			t.cursorChar = "|"
-			t.cursorLastTick = time.Now()
+			t.setCursorState("|")
 		}
 		t.text += newText
 
@@ -410,14 +407,13 @@ func (t *TextBox) Draw(win *pixelgl.Window, bounds pixel.Rect) {
 		// lose text input focus on enter key press
 		case win.JustPressed(pixelgl.KeyEnter), win.Repeated(pixelgl.KeyEnter):
 			t.hasFocus = false
-			t.cursorChar = ""
+			t.setCursorState("")
 
 		// delete character on backspace key press
 		case win.JustPressed(pixelgl.KeyBackspace), win.Repeated(pixelgl.KeyBackspace):
 			if len(t.text) > 0 {
 				t.text = t.text[:len(t.text)-1]
-				t.cursorChar = "|"
-				t.cursorLastTick = time.Now()
+				t.setCursorState("|")
 			}
 		}
 	}
@@ -447,6 +443,11 @@ func (t *TextBox) Draw(win *pixelgl.Window, bounds pixel.Rect) {
 	labelPos = bounds.Min.Add(pixel.V(labelXOffset, labelYOffset))
 
 	inputText.Draw(win, pixel.IM.Scaled(inputText.Orig, labelScaleFactor).Moved(labelPos))
+}
+
+func (t *TextBox) setCursorState(character string) {
+	t.cursorChar = character
+	t.cursorLastTick = time.Now()
 }
 
 // SetText sets the text box input value.
