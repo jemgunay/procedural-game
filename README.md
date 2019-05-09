@@ -1,12 +1,20 @@
-# 2D Multiplayer Game Demo
+# Multiplayer Procedural Game Demo
 
-A cheeky multiplayer procedural terrain game demo made using the pixel game engine.
+A cheeky 2D multiplayer procedural terrain game demo made using the pixel game engine.
+
+WASD to move character, RF to zoom in/out.
 
 ## Build & Run
 
 ```bash
 go mod download
 go build && ./game
+```
+
+## Package Executable & Assets
+
+```bash
+make package
 ```
 
 ## TODO
