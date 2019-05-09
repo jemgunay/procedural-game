@@ -12,10 +12,10 @@ import (
 	"github.com/faiface/pixel/pixelgl"
 	"golang.org/x/image/colornames"
 
-	"github.com/jemgunay/game/client"
-	"github.com/jemgunay/game/player"
-	"github.com/jemgunay/game/server"
-	"github.com/jemgunay/game/world"
+	"github.com/jemgunay/procedural-game/client"
+	"github.com/jemgunay/procedural-game/player"
+	"github.com/jemgunay/procedural-game/server"
+	"github.com/jemgunay/procedural-game/world"
 )
 
 // Layer is a drawable and updatable scene layer.

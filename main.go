@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/faiface/pixel/pixelgl"
-	"github.com/jemgunay/game/file"
-	"github.com/jemgunay/game/scene"
+	"github.com/jemgunay/procedural-game/file"
+	"github.com/jemgunay/procedural-game/scene"
 )
 
 func main() {

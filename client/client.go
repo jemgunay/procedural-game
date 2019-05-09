@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/jemgunay/game/server"
+	"github.com/jemgunay/procedural-game/server"
 )
 
 var (

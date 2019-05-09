@@ -6,9 +6,10 @@ import (
 
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
-	"github.com/jemgunay/game/scene/ui"
-	"github.com/jemgunay/game/server"
 	"golang.org/x/image/colornames"
+
+	"github.com/jemgunay/procedural-game/scene/ui"
+	"github.com/jemgunay/procedural-game/server"
 )
 
 // MainMenu is the main menu layer which is first displayed upon game startup.
