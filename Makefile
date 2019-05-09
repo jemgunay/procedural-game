@@ -1,8 +1,8 @@
-APP_NAME=game
+APP_NAME="procedural-game"
 
 # Clean up generated files.
 clean:
-	rm -r ${APP_NAME} ./build
+	rm -rf ${APP_NAME} ./build
 
 # Build game executable.
 build: clean

@@ -8,7 +8,7 @@ WASD to move character, RF to zoom in/out.
 
 ```bash
 go mod download
-go build && ./game
+go build && ./procedural-game
 ```
 
 ## Package Executable & Assets
@@ -16,6 +16,8 @@ go build && ./game
 ```bash
 make package
 ```
+
+Generated zip archive can be found in the `build` directory.
 
 ## TODO
 
