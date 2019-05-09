@@ -6,6 +6,8 @@ WASD to move character, RF to zoom in/out.
 
 ## Build & Run
 
+Install `pixel` dependencies: https://github.com/faiface/pixel#requirements
+
 ```bash
 go mod download
 go build && ./procedural-game
