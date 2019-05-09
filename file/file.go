@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	assetsDir        = "../../assets/img/"
+	assetsDir        = "assets/img/"
 	imageAssetsStore = make(map[ImageFile]*pixel.PictureData)
 )
 

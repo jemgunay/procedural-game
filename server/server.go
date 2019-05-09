@@ -7,10 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strconv"
 	"strings"
-
-	"github.com/faiface/pixel"
 )
 
 var (

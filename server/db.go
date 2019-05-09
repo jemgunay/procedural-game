@@ -86,8 +86,8 @@ func (d *UserDB) Create(username string, conn net.Conn) (User, error) {
 
 	// validate username
 	switch {
-	case len(username) < 6:
-		return newUser, errors.New("username must have a minimum length of 6 characters")
+	case len(username) < 5:
+		return newUser, errors.New("username must have a minimum length of 5 characters")
 	case len(username) > 12:
 		return newUser, errors.New("username length must not exceed 12 characters")
 	}
