@@ -1,4 +1,4 @@
-module github.com/jemgunay/game
+module github.com/jemgunay/procedural-game
 
 require (
 	github.com/aquilax/go-perlin v0.0.0-20150412072437-3f94c9ea34d7
