@@ -143,7 +143,7 @@ func NewGame(gameType GameType, addr string, playerName string) (game *Game, err
 	}
 
 	client.Send(server.Message{
-		Type:  "register",
+		Type:  "connect",
 		Value: playerName,
 	})
 
@@ -155,7 +155,7 @@ func NewGame(gameType GameType, addr string, playerName string) (game *Game, err
 	)
 	for {
 		switch msg := client.Poll(); msg.Type {
-		case "register_success":
+		case "register_success", "connect_success":
 			data, err := msg.Unpack()
 			if err != nil {
 				fmt.Printf("failed to unpack register_success message")
@@ -220,8 +220,8 @@ func (g *Game) processServerUpdates() {
 		switch msg := client.Poll(); msg.Type {
 		// new player joined the game
 		case "user_joined":
-			_, err := g.players.Add(msg.Value)
-			if err != nil {
+			if _, err := g.players.Add(msg.Value); err != nil {
+				fmt.Printf("failed to create user: %s", err)
 				break
 			}
 			fmt.Println(msg.Value + " joined the game!")

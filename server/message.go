@@ -21,7 +21,31 @@ func (m *Message) Unpack() (map[string]interface{}, error) {
 	components := strings.Split(m.Value, "|")
 
 	switch m.Type {
-	case "register_success":
+	case "pos":
+		// validation
+		if len(components) != 4 {
+			return nil, errors.New("incorrect pos component count")
+		}
+		x, err := strconv.ParseFloat(components[1], 64)
+		if err != nil {
+			return nil, errors.New("failed to parse X")
+		}
+		y, err := strconv.ParseFloat(components[2], 64)
+		if err != nil {
+			return nil, errors.New("failed to parse Y")
+		}
+		rot, err := strconv.ParseFloat(components[3], 64)
+		if err != nil {
+			return nil, errors.New("failed to parse rot")
+		}
+		// unpacked response
+		return map[string]interface{}{
+			"name": components[0],
+			"pos":  pixel.V(x, y),
+			"rot":  rot,
+		}, nil
+
+	case "register_success", "connect_success":
 		// validation
 		if len(components) != 5 {
 			return nil, errors.New("incorrect register_success component count")
@@ -48,29 +72,24 @@ func (m *Message) Unpack() (map[string]interface{}, error) {
 			"rot":  rot,
 		}, nil
 
-	case "pos":
-		// validation
-		if len(components) != 4 {
-			return nil, errors.New("incorrect pos component count")
-		}
-		x, err := strconv.ParseFloat(components[1], 64)
-		if err != nil {
-			return nil, errors.New("failed to parse X")
-		}
-		y, err := strconv.ParseFloat(components[2], 64)
-		if err != nil {
-			return nil, errors.New("failed to parse Y")
-		}
-		rot, err := strconv.ParseFloat(components[3], 64)
-		if err != nil {
-			return nil, errors.New("failed to parse rot")
-		}
-		// unpacked response
-		return map[string]interface{}{
-			"name": components[0],
-			"pos":  pixel.V(x, y),
-			"rot":  rot,
-		}, nil
+	case "init_world":
+
+		/*for _, item := range components {
+			name, pos, rot, err := splitPosReq(item)
+			if err != nil {
+				fmt.Printf("failed to split pos request: %s", err)
+				break
+			}
+
+			// add new player
+			p, err := g.players.Add(name)
+			if err != nil {
+				fmt.Printf("failed to add player \"%s\": %s\n", name, err)
+				break
+			}
+			p.SetPos(pos)
+			p.SetOrientation(rot)
+		}*/
 	}
 
 	return nil, fmt.Errorf("unsupported message type supplied: %s", m.Type)

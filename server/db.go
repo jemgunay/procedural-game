@@ -8,16 +8,12 @@ import (
 	"net"
 	"sync"
 	"unicode"
-
-	"github.com/twinj/uuid"
 )
 
 // User represents a persistent user record.
 type User struct {
-	conn net.Conn
-	name string
-	// a uuid is returned to a new new client which is used as a validation token during future connections
-	uuid      string
+	conn      net.Conn
+	name      string
 	blocked   bool
 	posRotStr string
 }
@@ -45,28 +41,28 @@ type UserDB struct {
 	sync.RWMutex
 }
 
-// Get safely retrieves the user corresponding with the provided UUID. If the user doesn't exist, an empty User is
+// Get safely retrieves the user corresponding with the provided username. If the user doesn't exist, an empty User is
 // returned.
-func (d *UserDB) Get(uuid string) User {
+func (d *UserDB) Get(username string) (User, bool) {
 	d.RLock()
-	user := d.users[uuid]
+	user, ok := d.users[username]
 	d.RUnlock()
-	return user
+	return user, ok
 }
 
 // Update safely updates a user by its UUID.
 func (d *UserDB) Update(user User) {
 	d.Lock()
-	d.users[user.uuid] = user
+	d.users[user.name] = user
 	d.Unlock()
 }
 
 // Broadcast broadcasts a message to all connected users except those in the specified list of exclusion UUIDs.
-func (d *UserDB) Broadcast(msg Message, excludeUUIDs ...string) {
+func (d *UserDB) Broadcast(msg Message, excludeUserNames ...string) {
 	d.RLock()
 	for _, user := range d.users {
-		for _, id := range excludeUUIDs {
-			if user.uuid == id {
+		for _, name := range excludeUserNames {
+			if user.name == name {
 				continue
 			}
 			user.Send(msg)
@@ -81,7 +77,6 @@ func (d *UserDB) Create(username string, conn net.Conn) (User, error) {
 	newUser := User{
 		name: username,
 		conn: conn,
-		uuid: uuid.NewV4().String(),
 	}
 
 	// validate username
@@ -117,15 +112,15 @@ func (d *UserDB) Create(username string, conn net.Conn) (User, error) {
 
 	// insert new user into DB
 	d.Lock()
-	d.users[newUser.uuid] = newUser
+	d.users[newUser.name] = newUser
 	d.Unlock()
 	return newUser, nil
 }
 
 // Connect associates an existing user in the user DB with a new connection.
-func (d *UserDB) Connect(uuid string, conn net.Conn) (User, error) {
+func (d *UserDB) Connect(username string, conn net.Conn) (User, error) {
 	d.RLock()
-	user, ok := d.users[uuid]
+	user, ok := d.users[username]
 	d.RUnlock()
 	if !ok {
 		return User{}, errors.New("user not found in DB")
@@ -139,7 +134,7 @@ func (d *UserDB) Connect(uuid string, conn net.Conn) (User, error) {
 	// update connection
 	user.conn = conn
 	d.Lock()
-	d.users[uuid] = user
+	d.users[username] = user
 	d.Unlock()
 	return user, nil
 }
@@ -150,12 +145,12 @@ func (d *UserDB) Disconnect(user User) {
 	user.conn = nil
 	d.Lock()
 	// set connection to nil
-	d.users[user.uuid] = user
+	d.users[user.name] = user
 	d.Unlock()
 
 	// broadcast user leaving message to all remaining connected users
 	d.Broadcast(Message{
 		Type:  "disconnect",
 		Value: user.name,
-	}, user.uuid)
+	}, user.name)
 }

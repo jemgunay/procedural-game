@@ -8,12 +8,13 @@ import (
 
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
+
 	"github.com/jemgunay/procedural-game/file"
 )
 
 // Player represents a drawable client player.
 type Player struct {
-	Name            string
+	name            string
 	pos             pixel.Vec
 	prevPos         pixel.Vec
 	speed           float64
@@ -120,10 +121,10 @@ func NewStore() *Store {
 // Find returns the player which corresponds with the specified username.
 func (s *Store) Find(username string) (*Player, error) {
 	s.RLock()
-	defer s.RUnlock()
 	p, ok := s.players[username]
+	s.RUnlock()
 	if !ok {
-		return nil, errors.New("player with that username does not exist")
+		return nil, errors.New("player does not exist with username: " + username)
 	}
 	return p, nil
 }
@@ -134,7 +135,7 @@ func (s *Store) Add(username string) (*Player, error) {
 	defer s.Unlock()
 	// ensure player does not already exist in store
 	if _, ok := s.players[username]; ok {
-		return nil, errors.New("player with that username already exists")
+		return nil, errors.New("player already exists with username: " + username)
 	}
 
 	// create sprite
@@ -144,7 +145,7 @@ func (s *Store) Add(username string) (*Player, error) {
 	}
 
 	newPlayer := &Player{
-		Name:        username,
+		name:        username,
 		pos:         pixel.ZV,
 		speed:       500.0,
 		orientation: 0.0,

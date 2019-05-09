@@ -4,7 +4,6 @@ package server
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -114,7 +113,7 @@ func handleConn(conn net.Conn) {
 			user.posRotStr = msg.Value
 			userDB.Update(user)
 			msg.Value = user.name + "|" + msg.Value
-			userDB.Broadcast(msg, user.uuid)
+			userDB.Broadcast(msg, user.name)
 
 		default:
 			fmt.Printf("unsupported request type for connected stage: %s\n", msg.Type)
@@ -133,56 +132,54 @@ func handleConn(conn net.Conn) {
 // handles registering (signing up) and reconnecting (logging in) users on an established connection, associating the
 // connection with a user in the process
 func establishUser(msg Message, conn net.Conn) (user User) {
+	if msg.Type != "connect" {
+		fmt.Println("unsupported request type for init stage: " + msg.Type)
+		return user
+	}
+
+	var ok bool
 	var err error
 
-	switch msg.Type {
-	case "register":
-		// attempt to create new user given the provided username
+	user, ok = userDB.Get(msg.Value)
+	// user does not exist yet - attempt to create new user given the provided username
+	if !ok {
 		user, err = userDB.Create(msg.Value, conn)
 		if err != nil {
 			user.Send(Message{
 				Type:  "register_failure",
 				Value: "failed to create user: " + err.Error(),
 			})
-			break
+			return
 		}
 
 		// respond with register success
 		user.Send(Message{
 			Type:  "register_success",
-			Value: user.uuid + "|" + worldSeed + "|" + user.posRotStr,
+			Value: user.name + "|" + worldSeed + "|" + user.posRotStr,
 		})
-
-	case "connect":
+	} else {
 		// attempt to establish connection for existing user
 		user, err = userDB.Connect(msg.Value, conn)
 		if err != nil {
-			err = fmt.Errorf("failed to connect existing user: %s", err)
-			break
+			user.Send(Message{
+				Type:  "connect_failure",
+				Value: "failed to connect existing user: " + err.Error(),
+			})
+			return
 		}
 
 		// respond with connect success
 		user.Send(Message{
 			Type:  "connect_success",
-			Value: user.posRotStr,
+			Value: user.name + "|" + worldSeed + "|" + user.posRotStr,
 		})
-
-	default:
-		err = errors.New("unsupported request type for init stage: " + msg.Type)
-	}
-
-	// catch if any errors occurred
-	if err != nil {
-		fmt.Printf("failed to establish user connection: %s\n", err)
-		// TODO: respond with error message
-		return
 	}
 
 	// broadcast to all players that user successfully joined
 	userDB.Broadcast(Message{
 		Type:  "user_joined",
 		Value: user.name,
-	}, user.uuid)
+	}, user.name)
 
 	// send world update to player
 	var data strings.Builder

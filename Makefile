@@ -8,7 +8,7 @@ clean:
 build: clean
 	go build
 
-# Build game into zip archive.
+# Build game & assets into zip archive.
 package: build
 	mkdir ./build
 	zip -r  --exclude="assets/img/player_raw_assets/*" ${APP_NAME}.zip ${APP_NAME} ./assets
