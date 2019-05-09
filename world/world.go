@@ -43,7 +43,7 @@ func (t *Tile) SetSprite(imageFile file.ImageFile) (err error) {
 
 const (
 	// just greater than 200 to overlap, preventing stitching glitch
-	tileSize  = 201
+	tileSize  = 402
 	chunkSize = 50
 
 	// weight/noisiness
@@ -90,7 +90,7 @@ func (g *TileGrid) createTile(imageFile file.ImageFile, x, y int, z float64, mas
 		colourMask: mask,
 		visible:    true,
 		gridPos:    pixel.V(float64(x), float64(y)),
-		absPos:     pixel.IM.Scaled(pixel.V(float64(x), float64(y)), 2.0).Moved(absPos),
+		absPos:     pixel.IM.Scaled(pixel.V(float64(x), float64(y)), 4.0).Moved(absPos),
 	}
 
 	// insert tile into tile grid
