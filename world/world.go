@@ -42,7 +42,7 @@ func (t *Tile) SetSprite(imageFile file.ImageFile) (err error) {
 }
 
 const (
-	// just grater than 200 to overlap, preventing stitching glitch
+	// just greater than 200 to overlap, preventing stitching glitch
 	tileSize  = 201
 	chunkSize = 50
 

@@ -10,6 +10,13 @@ import (
 	"unicode"
 )
 
+const (
+	// MinUsernameLength is the minimum username length.
+	MinUsernameLength = 5
+	// MaxUsernameLength is the maximum username length.
+	MaxUsernameLength = 12
+)
+
 // User represents a persistent user record.
 type User struct {
 	conn      net.Conn
@@ -70,11 +77,6 @@ func (d *UserDB) Broadcast(msg Message, excludeUserNames ...string) {
 	}
 	d.RUnlock()
 }
-
-const (
-	MinUsernameLength = 5
-	MaxUsernameLength = 12
-)
 
 // Create creates a new user in the user DB given a username and connection.
 func (d *UserDB) Create(username string, conn net.Conn) (User, error) {

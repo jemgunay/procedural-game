@@ -79,7 +79,6 @@ func handleConn(conn net.Conn) {
 	fmt.Println("TCP client connection established on " + addr)
 
 	var user User
-
 	for {
 		resp, err := bufio.NewReader(conn).ReadString('\n')
 		if err != nil {

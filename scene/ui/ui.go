@@ -400,9 +400,9 @@ func (t *TextBox) Draw(win *pixelgl.Window, bounds pixel.Rect) {
 		}
 		newText := win.Typed()
 		if newText != "" {
+			t.text += newText
 			t.setCursorState("|")
 		}
-		t.text += newText
 
 		// cap text to max length if a max length has been set
 		if t.maxLength > 0 && len(t.text) > t.maxLength {
@@ -462,7 +462,7 @@ func (t *TextBox) Text() string {
 
 // SetText sets the text box input value. If the length of the new text exceeds the maximum length, it will be capped.
 func (t *TextBox) SetText(text string) {
-	if len(text) > t.maxLength {
+	if t.maxLength > 0 && len(text) > t.maxLength {
 		text = text[:t.maxLength]
 	}
 	t.text = text

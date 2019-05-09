@@ -97,6 +97,7 @@ func NewCreateGameMenu() *CreateGameMenu {
 		startBtn:            ui.NewButton("Start", ui.Green, colornames.White),
 	}
 	menu.portTextInput.SetText("9000")
+	menu.portTextInput.SetMaxLength(5)
 	menu.playerNameTextInput.SetMaxLength(server.MaxUsernameLength)
 
 	container.AddElement(menu.backBtn, menu.seedTextInput, menu.portTextInput, menu.playerNameTextInput, menu.startBtn)
