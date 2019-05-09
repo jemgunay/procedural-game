@@ -74,44 +74,6 @@ func Shutdown() {
 	// TODO: wg.Wait()
 }
 
-// Message represents an incoming request from a client or an outgoing request from the server.
-type Message struct {
-	Type  string `json:"type"`
-	Value string `json:"val,omitempty"`
-}
-
-func (m *Message) Unpack() (map[string]interface{}, error) {
-	components := strings.Split(m.Value, "|")
-	switch m.Type {
-	case "pos":
-		// validation
-		if len(components) != 4 {
-			return nil, errors.New("incorrect pos component count")
-		}
-		x, err := strconv.ParseFloat(components[1], 64)
-		if err != nil {
-			return nil, errors.New("failed to parse X")
-		}
-		y, err := strconv.ParseFloat(components[2], 64)
-		if err != nil {
-			return nil, errors.New("failed to parse Y")
-		}
-		rot, err := strconv.ParseFloat(components[3], 64)
-		if err != nil {
-			return nil, errors.New("failed to parse rot")
-		}
-		// unpacked response
-		unpacked := map[string]interface{}{
-			"name": components[0],
-			"pos":  pixel.V(x, y),
-			"rot":  rot,
-		}
-		return unpacked, nil
-	}
-
-	return nil, fmt.Errorf("unsupported message type supplied: %s", m.Type)
-}
-
 // handles the processing and maintenance of a connection between the server and a single game client.
 func handleConn(conn net.Conn) {
 	defer conn.Close()
@@ -191,7 +153,7 @@ func establishUser(msg Message, conn net.Conn) (user User) {
 		// respond with register success
 		user.Send(Message{
 			Type:  "register_success",
-			Value: worldSeed + "|" + user.uuid + "/" + user.posRotStr,
+			Value: user.uuid + "|" + worldSeed + "|" + user.posRotStr,
 		})
 
 	case "connect":

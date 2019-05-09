@@ -149,26 +149,26 @@ func NewGame(gameType GameType, addr string, playerName string) (game *Game, err
 
 	// wait for register success
 	var (
-		seed, uuid string, pos,
-		rot float64
+		seed, uuid string
+		pos        pixel.Vec
+		rot        float64
 	)
 	for {
 		switch msg := client.Poll(); msg.Type {
 		case "register_success":
-			components := strings.Split(msg.Value, "|")
-			if len(components) != 3 {
-				return nil, errors.New("malformed register_success response")
-			}
-			seed = components[1]
-			uuid, pos, rot, err = splitPosReq(components[2])
+			data, err := msg.Unpack()
 			if err != nil {
-				return nil, err
+				fmt.Printf("failed to unpack register_success message")
 			}
+
+			seed = data["seed"].(string)
+			uuid = data["uuid"].(string)
+			pos = data["pos"].(pixel.Vec)
+			rot = data["rot"].(float64)
 
 			fmt.Printf("user UUID: %s\n", uuid)
 
 		case "register_failure", "connect_failure":
-			server.Shutdown()
 			return nil, errors.New(msg.Value)
 
 		default:
@@ -187,7 +187,6 @@ func NewGame(gameType GameType, addr string, playerName string) (game *Game, err
 	fmt.Printf("generating new world with a seed of \"%s\" (%d)\n", seed, seedNum)
 	tileGrid := world.NewTileGrid(seedNum)
 	if err = tileGrid.GenerateChunk(); err != nil {
-		server.Shutdown()
 		return nil, fmt.Errorf("failed to generate world: %s", err)
 	}
 
@@ -250,20 +249,20 @@ func (g *Game) processServerUpdates() {
 
 		// update a player's position and orientation
 		case "pos":
-			name, pos, rot, err := splitPosReq(msg.Value)
+			data, err := msg.Unpack()
 			if err != nil {
 				fmt.Printf("failed to split pos request: %s", err)
 				break
 			}
 
 			// find new player
-			p, err := g.players.Find(name)
+			p, err := g.players.Find(data["name"].(string))
 			if err != nil {
 				fmt.Printf("player doesn't exist: %s\n", err)
 				break
 			}
-			p.SetPos(pos)
-			p.SetOrientation(rot)
+			p.SetPos(data["pos"].(pixel.Vec))
+			p.SetOrientation(data["rot"].(float64))
 
 		// remove a player from the game
 		case "disconnect":
@@ -282,17 +281,17 @@ func splitPosReq(val string) (name string, pos pixel.Vec, rot float64, err error
 	}
 	x, err := strconv.ParseFloat(components[1], 64)
 	if err != nil {
-		err = fmt.Errorf("failed to parse X: %s\n", err)
+		err = fmt.Errorf("failed to parse X: %s", err)
 		return
 	}
 	y, err := strconv.ParseFloat(components[2], 64)
 	if err != nil {
-		err = fmt.Errorf("failed to parse Y: %s\n", err)
+		err = fmt.Errorf("failed to parse Y: %s", err)
 		return
 	}
 	rot, err = strconv.ParseFloat(components[3], 64)
 	if err != nil {
-		err = fmt.Errorf("failed to parse rot: %s\n", err)
+		err = fmt.Errorf("failed to parse rot: %s", err)
 		return
 	}
 	name = components[0]

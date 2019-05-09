@@ -115,7 +115,7 @@ func (m *CreateGameMenu) Update(dt float64) {
 		}
 
 		// start server or client
-		if err = server.Start(m.playerNameTextInput.Text(), seedInput); err != nil {
+		if err = server.Start(fmt.Sprintf(":%d", portInput), seedInput); err != nil {
 			fmt.Printf("server failed to start: %s\n", err)
 			return
 		}
@@ -124,6 +124,7 @@ func (m *CreateGameMenu) Update(dt float64) {
 		gameLayer, err := NewGame(Server, fmt.Sprintf(":%d", portInput), m.playerNameTextInput.Text())
 		if err != nil {
 			fmt.Printf("failed to create game layer: %s\n", err)
+			server.Shutdown()
 			return
 		}
 
@@ -177,7 +178,7 @@ func (m *JoinGameMenu) Update(dt float64) {
 
 	case m.joinBtn.Clicked():
 		// create a new game layer
-		gameLayer, err := NewGame(Client, "d", m.hostAddrTextInput.Text(), m.playerNameTextInput.Text())
+		gameLayer, err := NewGame(Client, m.hostAddrTextInput.Text(), m.playerNameTextInput.Text())
 		if err != nil {
 			fmt.Printf("failed to create game layer: %s\n", err)
 			return
