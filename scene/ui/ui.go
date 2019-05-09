@@ -3,6 +3,7 @@ package ui
 
 import (
 	"image/color"
+	"time"
 
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/imdraw"
@@ -338,6 +339,8 @@ func (b *Button) Draw(win *pixelgl.Window, bounds pixel.Rect) {
 	label.Draw(win, pixel.IM.Scaled(label.Orig, labelScaleFactor).Moved(labelPos))
 }
 
+const textBoxTickerDuration = time.Millisecond * 600
+
 // TextBox is a text input box UI element.
 type TextBox struct {
 	hasFocus bool
@@ -347,6 +350,9 @@ type TextBox struct {
 	text          string
 	textColour    pixel.RGBA
 	textColourAlt pixel.RGBA
+
+	cursorLastTick time.Time
+	cursorChar     string
 }
 
 // NewTextBox creates and initialises a UI text input box.
@@ -375,21 +381,43 @@ func (t *TextBox) Draw(win *pixelgl.Window, bounds pixel.Rect) {
 	// give input focus if clicked & lose focus if mouse clicked outside of input
 	if win.JustPressed(pixelgl.MouseButton1) {
 		t.hasFocus = bounds.Contains(win.MousePosition())
+		if t.hasFocus {
+			t.cursorLastTick = time.Now()
+			t.cursorChar = "|"
+		} else {
+			t.cursorChar = ""
+		}
 	}
 
 	// store new text input if text box has focus
 	if t.hasFocus {
-		t.text += win.Typed()
+		if time.Since(t.cursorLastTick) >= textBoxTickerDuration {
+			t.cursorLastTick = time.Now()
+			if t.cursorChar == "|" {
+				t.cursorChar = " "
+			} else {
+				t.cursorChar = "|"
+			}
+		}
+		newText := win.Typed()
+		if newText != "" {
+			t.cursorChar = "|"
+			t.cursorLastTick = time.Now()
+		}
+		t.text += newText
 
 		switch {
 		// lose text input focus on enter key press
 		case win.JustPressed(pixelgl.KeyEnter), win.Repeated(pixelgl.KeyEnter):
 			t.hasFocus = false
+			t.cursorChar = ""
 
 		// delete character on backspace key press
 		case win.JustPressed(pixelgl.KeyBackspace), win.Repeated(pixelgl.KeyBackspace):
 			if len(t.text) > 0 {
 				t.text = t.text[:len(t.text)-1]
+				t.cursorChar = "|"
+				t.cursorLastTick = time.Now()
 			}
 		}
 	}
@@ -410,6 +438,7 @@ func (t *TextBox) Draw(win *pixelgl.Window, bounds pixel.Rect) {
 	inputText := text.New(pixel.ZV, basicFontAtlas)
 	inputText.Color = t.textColour
 	inputText.WriteString(t.text)
+	inputText.WriteString(t.cursorChar)
 
 	labelHeight = bounds.H() * 0.7
 	labelScaleFactor = labelHeight / inputText.Bounds().H()
