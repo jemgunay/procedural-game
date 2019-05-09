@@ -125,7 +125,7 @@ func (c *ScrollContainer) Draw(win *pixelgl.Window) {
 
 	// draw elements at fixed size
 	elementWidth := bounds.W()
-	elementHeight := 170.0
+	elementHeight := 150.0
 
 	contentHeight := float64(len(c.elements)) * elementHeight
 	contentToBoundsRatio := bounds.H() / contentHeight
@@ -343,7 +343,8 @@ const textBoxTickerDuration = time.Millisecond * 600
 
 // TextBox is a text input box UI element.
 type TextBox struct {
-	hasFocus bool
+	hasFocus  bool
+	maxLength int
 
 	bgColour      pixel.RGBA
 	label         string
@@ -403,6 +404,11 @@ func (t *TextBox) Draw(win *pixelgl.Window, bounds pixel.Rect) {
 		}
 		t.text += newText
 
+		// cap text to max length if a max length has been set
+		if t.maxLength > 0 && len(t.text) > t.maxLength {
+			t.text = t.text[:t.maxLength]
+		}
+
 		switch {
 		// lose text input focus on enter key press
 		case win.JustPressed(pixelgl.KeyEnter), win.Repeated(pixelgl.KeyEnter):
@@ -425,7 +431,6 @@ func (t *TextBox) Draw(win *pixelgl.Window, bounds pixel.Rect) {
 
 	labelHeight := bounds.H() * 0.3
 	labelScaleFactor := labelHeight / label.Bounds().H()
-	labelXOffset := (bounds.W() * 0.5) - (label.Bounds().W() * labelScaleFactor * 0.5)
 	labelPos := bounds.Min.Add(pixel.V(0, bounds.H()-(label.Bounds().H()*labelScaleFactor*0.7)))
 
 	label.Draw(win, pixel.IM.Scaled(label.Orig, labelScaleFactor).Moved(labelPos))
@@ -439,25 +444,38 @@ func (t *TextBox) Draw(win *pixelgl.Window, bounds pixel.Rect) {
 	labelHeight = bounds.H() * 0.7
 	labelScaleFactor = labelHeight / inputText.Bounds().H()
 	labelYOffset := (labelHeight * 0.5) - (inputText.Bounds().H() * labelScaleFactor * 0.35)
-	labelXOffset = (bounds.W() * 0.5) - (inputText.Bounds().W() * labelScaleFactor * 0.5)
-	labelPos = bounds.Min.Add(pixel.V(labelXOffset, labelYOffset))
+	labelPos = bounds.Min.Add(pixel.V(0, labelYOffset))
 
 	inputText.Draw(win, pixel.IM.Scaled(inputText.Orig, labelScaleFactor).Moved(labelPos))
 }
 
+// updates the cursor character and resets the flash interval
 func (t *TextBox) setCursorState(character string) {
 	t.cursorChar = character
 	t.cursorLastTick = time.Now()
 }
 
-// SetText sets the text box input value.
-func (t *TextBox) SetText(text string) {
-	t.text = text
-}
-
 // Text returns the text box input value.
 func (t *TextBox) Text() string {
 	return t.text
+}
+
+// SetText sets the text box input value. If the length of the new text exceeds the maximum length, it will be capped.
+func (t *TextBox) SetText(text string) {
+	if len(text) > t.maxLength {
+		text = text[:t.maxLength]
+	}
+	t.text = text
+}
+
+// MaxLength returns the maximum number of characters that can be typed into the text field.
+func (t *TextBox) MaxLength() int {
+	return t.maxLength
+}
+
+// SetMaxLength sets the maximum number of characters that can be typed into the text field.
+func (t *TextBox) SetMaxLength(length int) {
+	t.maxLength = length
 }
 
 // applies an alpha value to the provided colour

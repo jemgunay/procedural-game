@@ -1,3 +1,4 @@
+// Package file handles the processing of game asset files.
 package file
 
 import (

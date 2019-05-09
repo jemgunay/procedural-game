@@ -71,6 +71,11 @@ func (d *UserDB) Broadcast(msg Message, excludeUserNames ...string) {
 	d.RUnlock()
 }
 
+const (
+	MinUsernameLength = 5
+	MaxUsernameLength = 12
+)
+
 // Create creates a new user in the user DB given a username and connection.
 func (d *UserDB) Create(username string, conn net.Conn) (User, error) {
 	// create new user at the top of this func so that the conn can be consumed on error
@@ -81,9 +86,9 @@ func (d *UserDB) Create(username string, conn net.Conn) (User, error) {
 
 	// validate username
 	switch {
-	case len(username) < 5:
+	case len(username) < MinUsernameLength:
 		return newUser, errors.New("username must have a minimum length of 5 characters")
-	case len(username) > 12:
+	case len(username) > MaxUsernameLength:
 		return newUser, errors.New("username length must not exceed 12 characters")
 	}
 
