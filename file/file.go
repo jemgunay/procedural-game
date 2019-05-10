@@ -36,6 +36,7 @@ func LoadPicture(fileName ImageFile) error {
 		return err
 	}
 	defer file.Close()
+
 	img, _, err := image.Decode(file)
 	if err != nil {
 		return err
@@ -96,4 +97,26 @@ var imageFiles = map[ImageFile]bool{
 	RoadNW:   true,
 	RoadNS:   true,
 	RoadEW:   true,
+}
+
+// LoadShader loads a shader file from disk and stores it in the shader assets store.
+func LoadShader(fileName ImageFile) error {
+	file, err := os.Open(assetsDir + fileName.String())
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	//imageAssetsStore[fileName] = pixel.PictureDataFromImage(img)
+	return nil
+}
+
+var (
+	Default ImageFile = "default.frag.glsl"
+	Wavey   ImageFile = "wavey.frag.glsl"
+)
+
+var shaders = map[*ImageFile]string{
+	&Default: "",
+	&Wavey:   "",
 }
