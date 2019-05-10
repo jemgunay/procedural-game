@@ -43,8 +43,9 @@ func (t *Tile) SetSprite(imageFile file.ImageFile) (err error) {
 
 const (
 	// just greater than 200 to overlap, preventing stitching glitch
-	tileSize  = 402
-	chunkSize = 50
+	tileSize            = 201
+	tileSizeSpriteScale = 2.0
+	chunkSize           = 50
 
 	// weight/noisiness
 	terrainPerlinAlpha = 2.0
@@ -52,6 +53,8 @@ const (
 	terrainPerlinBeta = 1.0
 	// number of iterations
 	terrainPerlinIterations = 3
+	// scales coordinates before passing them into the perlin noise func
+	tileCoordinateScaleFactor = 11
 )
 
 // TileGrid is a concurrency safe map of tiles.
@@ -90,7 +93,7 @@ func (g *TileGrid) createTile(imageFile file.ImageFile, x, y int, z float64, mas
 		colourMask: mask,
 		visible:    true,
 		gridPos:    pixel.V(float64(x), float64(y)),
-		absPos:     pixel.IM.Scaled(pixel.V(float64(x), float64(y)), 4.0).Moved(absPos),
+		absPos:     pixel.IM.Scaled(pixel.V(float64(x), float64(y)), tileSizeSpriteScale).Moved(absPos),
 	}
 
 	// insert tile into tile grid
@@ -127,7 +130,7 @@ func (g *TileGrid) GenerateChunk() error {
 	for x := 0; x < chunkSize; x++ {
 		for y := 0; y < chunkSize; y++ {
 			// add one to scale z between 0 and 2
-			z := g.terrainGen.Noise2D(float64(x)/11, float64(y)/11) + 1
+			z := g.terrainGen.Noise2D(float64(x)/tileCoordinateScaleFactor, float64(y)/tileCoordinateScaleFactor) + 1
 
 			if z < minZ {
 				minZ = z
