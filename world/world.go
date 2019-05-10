@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/aquilax/go-perlin"
 	"github.com/faiface/pixel"
@@ -112,14 +113,104 @@ func (g *TileGrid) Get(gridPos pixel.Vec) *Tile {
 	return tile
 }
 
+var uTime float32 = 0
+var uSpeed float32 = 5
+
+var waveyFragmentShader = `
+#version 330 core
+in vec2  vTexCoords;
+out vec4 fragColor;
+uniform sampler2D uTexture;
+uniform vec4 uTexBounds;
+// custom uniforms
+uniform float uSpeed;
+uniform float uTime;
+
+void main() {
+    vec2 t = (vTexCoords - uTexBounds.xy) / uTexBounds.zw;
+	vec3 influence = texture(uTexture, t).rgb;
+	t.y += cos(t.x * 40.0 + (uTime * uSpeed))*0.005;
+	t.x += cos(t.y * 40.0 + (uTime * uSpeed))*0.01;
+    vec3 col = texture(uTexture, t).rgb;
+	fragColor = vec4(col,1.0);
+}
+`
+
+// vec2 t = gl_FragCoord.xy / uTexBounds.zw;
+
+var greyscaleFragmentShader = `
+#version 330 core
+in vec2  vTexCoords;
+out vec4 fragColor;
+uniform vec4 uTexBounds;
+uniform sampler2D uTexture;
+void main() {
+	// Get our current screen coordinate
+	vec2 t = (vTexCoords - uTexBounds.xy) / uTexBounds.zw;
+	// Sum our 3 color channels
+	float sum  = texture(uTexture, t).r;
+	      sum += texture(uTexture, t).g;
+	      sum += texture(uTexture, t).b;
+	// Divide by 3, and set the output to the result
+	vec4 color = vec4( sum/3, sum/3, sum/3, 1.0);
+	fragColor = color;
+}
+`
+
+var defaultFragmentShader = `
+#version 330 core
+
+in vec4  vColor;
+in vec2  vTexCoords;
+in float vIntensity;
+
+out vec4 fragColor;
+
+uniform vec4 uColorMask;
+uniform vec4 uTexBounds;
+uniform sampler2D uTexture;
+
+void main() {
+if (vIntensity == 0) {
+fragColor = uColorMask * vColor;
+} else {
+fragColor = vec4(0, 0, 0, 0);
+fragColor += (1 - vIntensity) * vColor;
+vec2 t = (vTexCoords - uTexBounds.xy) / uTexBounds.zw;
+fragColor += vIntensity * vColor * texture(uTexture, t);
+fragColor *= uColorMask;
+}
+}
+`
+
+var startTime = time.Now()
+
 // Draw draws all of the tiles in the tile grid.
 func (g *TileGrid) Draw(win *pixelgl.Window) {
+	uTime = float32(time.Since(startTime).Seconds())
+
+	win.Canvas().SetUniform("uTime", &uTime)
+	win.Canvas().SetUniform("uSpeed", &uSpeed)
+	win.Canvas().SetFragmentShader(waveyFragmentShader)
 	for _, tile := range g.tiles {
 		if !tile.visible {
 			continue
 		}
-		tile.sprite.DrawColorMask(win, tile.absPos, tile.colourMask)
+		if tile.fileName == file.Water {
+			tile.sprite.DrawColorMask(win, tile.absPos, tile.colourMask)
+		}
 	}
+
+	win.Canvas().SetFragmentShader(defaultFragmentShader)
+	for _, tile := range g.tiles {
+		if !tile.visible {
+			continue
+		}
+		if tile.fileName != file.Water {
+			tile.sprite.DrawColorMask(win, tile.absPos, tile.colourMask)
+		}
+	}
+
 }
 
 // GenerateChunk generates a chunk of tiles.

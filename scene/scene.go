@@ -33,7 +33,7 @@ var (
 func Start() {
 	// create window config
 	cfg := pixelgl.WindowConfig{
-		Title:     "Test Game",
+		Title:     "Procedural Game Demo",
 		Bounds:    pixel.R(0, 0, 1024, 768),
 		VSync:     false,
 		Resizable: true,
@@ -47,6 +47,7 @@ func Start() {
 		return
 	}
 
+
 	// push a main menu layer to the scene
 	Push(NewMainMenu())
 
@@ -55,6 +56,7 @@ func Start() {
 	prevTimestamp := time.Now()
 	// main game loop
 	for !win.Closed() {
+
 		dt := time.Since(prevTimestamp).Seconds()
 		prevTimestamp = time.Now()
 

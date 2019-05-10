@@ -24,9 +24,10 @@ Generated zip archive can be found in the `build` directory.
 ## TODO
 
 - UI for stopping server.
+- Camera follow smoothing.
 - Procedurally generated houses with accessible interiors.
 - Continuous world tile generation upon exploring unseen territory.
-- Cars.
+- Cars - using A* to navigate between road nodes.
 - Weapons (and ability for players to die).
 - Persistent TOML config produced fro setting menu.
 - Store/read server state to/from disk to allow restarts.

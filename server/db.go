@@ -45,6 +45,8 @@ func (u *User) Send(msg Message) {
 // UserDB is a database of users.
 type UserDB struct {
 	users map[string]User
+	rand  *rand.Rand
+
 	sync.RWMutex
 }
 
@@ -115,7 +117,7 @@ func (d *UserDB) Create(username string, conn net.Conn) (User, error) {
 	}
 
 	// set initial random position
-	newUser.posRotStr = fmt.Sprintf("%f|%f|%f", float64(rand.Intn(8000)), float64(rand.Intn(8000)), 0.0)
+	newUser.posRotStr = fmt.Sprintf("%f|%f|%f", float64(d.rand.Intn(8000)), float64(d.rand.Intn(8000)), 0.0)
 
 	// insert new user into DB
 	d.Lock()
