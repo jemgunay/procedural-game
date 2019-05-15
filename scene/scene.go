@@ -132,7 +132,8 @@ type Game struct {
 	mainPlayer *player.Player
 	players    *player.Store
 
-	cam           pixel.Matrix
+	camPos        pixel.Vec
+	camMatrix     pixel.Matrix
 	seed          string
 	camScale      float64
 	prevMousePos  pixel.Vec
@@ -204,22 +205,25 @@ func NewGame(gameType GameType, addr string, playerName string) (game *Game, err
 		return nil, fmt.Errorf("failed to generate world: %s", err)
 	}
 
-	// create new game instance
-	game = &Game{
-		gameType: gameType,
-		seed:     seed,
-		tileGrid: tileGrid,
-		players:  player.NewStore(),
-		camScale: 0.5,
-	}
-
-	// create main player
-	game.mainPlayer, err = game.players.Add(playerName)
+	// create player store & new main player
+	playerStore := player.NewStore()
+	mainPlayer, err := playerStore.Add(playerName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create player: %s", err)
 	}
-	game.mainPlayer.SetPos(pos)
-	game.mainPlayer.SetOrientation(rot)
+	mainPlayer.SetPos(pos)
+	mainPlayer.SetOrientation(rot)
+
+	// create new game instance
+	game = &Game{
+		gameType:   gameType,
+		seed:       seed,
+		tileGrid:   tileGrid,
+		players:    playerStore,
+		mainPlayer: mainPlayer,
+		camPos:     mainPlayer.Pos(),
+		camScale:   0.5,
+	}
 
 	// receive and process incoming requests from the server
 	go game.processServerUpdates()
@@ -360,7 +364,7 @@ func (g *Game) Update(dt float64) {
 	// handle mouse movement
 	if win.MousePosition() != g.prevMousePos {
 		// point mainPlayer at mouse
-		mousePos := g.cam.Unproject(win.MousePosition())
+		mousePos := g.camMatrix.Unproject(win.MousePosition())
 		g.mainPlayer.PointTo(mousePos)
 	}
 	g.prevMousePos = win.MousePosition()
@@ -373,14 +377,19 @@ func (g *Game) Update(dt float64) {
 			Value: fmt.Sprintf("%f|%f|%f", pos.X, pos.Y, g.mainPlayer.Orientation()),
 		})
 	}
+
+	// smooth camera tracking of player
+	pos := g.mainPlayer.Pos()
+	lerp := g.mainPlayer.Speed() * 0.01
+	g.camPos.X += (pos.X - g.camPos.X) * lerp * dt
+	g.camPos.Y += (pos.Y - g.camPos.Y) * lerp * dt
 }
 
 // Draw draws the game layer to the window.
 func (g *Game) Draw() {
 	// window camera
-	pos := g.mainPlayer.Pos()
-	g.cam = pixel.IM.Scaled(pos, g.camScale).Moved(win.Bounds().Center().Sub(pos))
-	win.SetMatrix(g.cam)
+	g.camMatrix = pixel.IM.Scaled(g.camPos, g.camScale).Moved(win.Bounds().Center().Sub(g.camPos))
+	win.SetMatrix(g.camMatrix)
 
 	win.Clear(colornames.Greenyellow)
 	// draw tiles

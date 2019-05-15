@@ -24,7 +24,6 @@ Generated zip archive can be found in the `build` directory.
 ## TODO
 
 - UI for stopping server.
-- Camera follow smoothing.
 - Procedurally generated houses with accessible interiors.
 - Continuous world tile generation upon exploring unseen territory.
 - Cars - using A* to navigate between road nodes.
