@@ -15,7 +15,7 @@ void main() {
     float maxBorder = 1.0-minBorder;
     if (t.x > minBorder && t.x < maxBorder && t.y > minBorder && t.y < maxBorder) {
         t.y += cos(t.x * 40.0 + (uTime * uSpeed))*0.005;
-        t.x += cos(t.y * 40.0 - (uTime * uSpeed))*0.01;
+        t.x += cos(t.y * 40.0 + (uTime * uSpeed))*0.01;
     }
     vec3 col = texture(uTexture, t).rgb;
     fragColor = vec4(col, 1.0);
