@@ -66,7 +66,7 @@ func (m *Message) Unpack() (map[string]interface{}, error) {
 
 		// unpacked response
 		return map[string]interface{}{
-			"uuid": components[0],
+			"username": components[0],
 			"seed": components[1],
 			"pos":  pixel.V(x, y),
 			"rot":  rot,

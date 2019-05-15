@@ -14,13 +14,29 @@ import (
 	"github.com/jemgunay/procedural-game/file"
 )
 
+const (
+	// just greater than 200 to overlap, preventing stitching glitch
+	tileSize            = 201
+	tileSizeSpriteScale = 2.0
+	chunkSize           = 50
+
+	// weight/noisiness
+	terrainPerlinAlpha = 2.0
+	// harmonic scaling/spacing
+	terrainPerlinBeta = 1.0
+	// number of iterations
+	terrainPerlinIterations = 3
+	// scales coordinates before passing them into the perlin noise func
+	tileCoordinateScaleFactor = 11
+)
+
 // Tile represents a single tile sprite and its corresponding properties.
 type Tile struct {
 	fileName     file.ImageFile
 	sprite       *pixel.Sprite
 	colourMask   color.Color
 	visible      bool
-	NoiseVal     float64
+	noiseVal     float64
 	roadMetaData string
 
 	// the grid co-ordinate representation of the tile position
@@ -39,22 +55,6 @@ func (t *Tile) SetSprite(imageFile file.ImageFile) (err error) {
 	t.sprite = sprite
 	return nil
 }
-
-const (
-	// just greater than 200 to overlap, preventing stitching glitch
-	tileSize            = 201
-	tileSizeSpriteScale = 2.0
-	chunkSize           = 50
-
-	// weight/noisiness
-	terrainPerlinAlpha = 2.0
-	// harmonic scaling/spacing
-	terrainPerlinBeta = 1.0
-	// number of iterations
-	terrainPerlinIterations = 3
-	// scales coordinates before passing them into the perlin noise func
-	tileCoordinateScaleFactor = 11
-)
 
 // TileGrid is a concurrency safe map of tiles.
 type TileGrid struct {
@@ -87,7 +87,7 @@ func (g *TileGrid) createTile(imageFile file.ImageFile, x, y int, z float64, mas
 	newTile := &Tile{
 		fileName:   imageFile,
 		sprite:     sprite,
-		NoiseVal:   z,
+		noiseVal:   z,
 		colourMask: mask,
 		visible:    true,
 		gridPos:    pixel.V(float64(x), float64(y)),
@@ -187,7 +187,7 @@ func (g *TileGrid) GenerateChunk() error {
 	var peakTiles []*Tile
 	for _, tile := range g.tiles {
 		count := g.CheckNeighbours(tile, true, func(t1, t2 *Tile) bool {
-			return t1.NoiseVal > t2.NoiseVal
+			return t1.noiseVal > t2.noiseVal
 		})
 		if count == 8 {
 			// check if new peak tile is too close to an existing peak tile
@@ -209,7 +209,7 @@ func (g *TileGrid) GenerateChunk() error {
 
 	// sort peak tiles by Z value
 	sort.Slice(peakTiles, func(i2 int, j2 int) bool {
-		return peakTiles[i2].NoiseVal > peakTiles[j2].NoiseVal
+		return peakTiles[i2].noiseVal > peakTiles[j2].noiseVal
 	})
 
 	type distPair struct {

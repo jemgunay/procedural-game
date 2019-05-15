@@ -59,14 +59,14 @@ func (d *UserDB) Get(username string) (User, bool) {
 	return user, ok
 }
 
-// Update safely updates a user by its UUID.
+// Update safely updates a user by its username.
 func (d *UserDB) Update(user User) {
 	d.Lock()
 	d.users[user.name] = user
 	d.Unlock()
 }
 
-// Broadcast broadcasts a message to all connected users except those in the specified list of exclusion UUIDs.
+// Broadcast broadcasts a message to all connected users except those in the specified list of exclusion usernames.
 func (d *UserDB) Broadcast(msg Message, excludeUserNames ...string) {
 	d.RLock()
 	for _, user := range d.users {

@@ -164,7 +164,7 @@ func NewGame(gameType GameType, addr string, playerName string) (game *Game, err
 
 	// wait for register success
 	var (
-		seed, uuid string
+		seed, username string
 		pos        pixel.Vec
 		rot        float64
 	)
@@ -177,11 +177,11 @@ func NewGame(gameType GameType, addr string, playerName string) (game *Game, err
 			}
 
 			seed = data["seed"].(string)
-			uuid = data["uuid"].(string)
+			username = data["username"].(string)
 			pos = data["pos"].(pixel.Vec)
 			rot = data["rot"].(float64)
 
-			fmt.Printf("user UUID: %s\n", uuid)
+			fmt.Printf("new user with username: %s\n", username)
 
 		case "register_failure", "connect_failure":
 			return nil, errors.New(msg.Value)
