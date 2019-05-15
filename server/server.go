@@ -68,6 +68,7 @@ func Start(addr, seed string) error {
 
 // Shutdown gracefully shuts down the TCP server.
 func Shutdown() {
+	fmt.Println("server shutting down")
 	stopChan <- struct{}{}
 	listener.Close()
 	// TODO: wg.Wait()

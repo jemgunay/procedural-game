@@ -139,10 +139,11 @@ func (s *Store) Find(username string) (*Player, error) {
 
 // Add takes a username, creates a new corresponding user and adds it to the player store.
 func (s *Store) Add(username string) (*Player, error) {
-	s.Lock()
-	defer s.Unlock()
 	// ensure player does not already exist in store
-	if _, ok := s.players[username]; ok {
+	s.RLock()
+	_, ok := s.players[username]
+	s.RUnlock()
+	if ok {
 		return nil, errors.New("player already exists with username: " + username)
 	}
 
@@ -160,7 +161,10 @@ func (s *Store) Add(username string) (*Player, error) {
 		sprite:      sprite,
 	}
 
+	// add new player to players map
+	s.Lock()
 	s.players[username] = newPlayer
+	s.Unlock()
 	return newPlayer, nil
 }
 

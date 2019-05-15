@@ -120,7 +120,7 @@ func (m *CreateGameMenu) Update(dt float64) {
 			return
 		}
 
-		// start server or client
+		// start server
 		if err = server.Start(fmt.Sprintf(":%d", portInput), seedInput); err != nil {
 			fmt.Printf("server failed to start: %s\n", err)
 			return
@@ -207,10 +207,10 @@ func (m *JoinGameMenu) Draw() {
 
 // OverlayMenu is the overlay menu layer which is drawn over the main game layer.
 type OverlayMenu struct {
-	uiContainer *ui.FixedContainer
-	resumeBtn   *ui.Button
-	serverBtn   *ui.Button
-	quitBtn     *ui.Button
+	uiContainer   *ui.FixedContainer
+	resumeBtn     *ui.Button
+	disconnectBtn *ui.Button
+	quitBtn       *ui.Button
 }
 
 // NewOverlayMenu creates and initialises a new overlay menu layer.
@@ -225,12 +225,12 @@ func NewOverlayMenu() *OverlayMenu {
 	})
 
 	menu := &OverlayMenu{
-		uiContainer: container,
-		resumeBtn:   ui.NewButton("Resume", ui.Blue, colornames.White),
-		serverBtn:   ui.NewButton("Server Settings", ui.Green, colornames.White),
-		quitBtn:     ui.NewButton("Quit Game", ui.Red, colornames.White),
+		uiContainer:   container,
+		resumeBtn:     ui.NewButton("Resume", ui.Blue, colornames.White),
+		disconnectBtn: ui.NewButton("Disconnect", ui.Green, colornames.White),
+		quitBtn:       ui.NewButton("Quit Game", ui.Red, colornames.White),
 	}
-	container.AddElement(menu.resumeBtn, menu.serverBtn, menu.quitBtn)
+	container.AddElement(menu.resumeBtn, menu.disconnectBtn, menu.quitBtn)
 
 	return menu
 }
@@ -240,8 +240,8 @@ func (m *OverlayMenu) Update(dt float64) {
 	switch {
 	case m.resumeBtn.Clicked(), win.JustPressed(pixelgl.KeyEscape):
 		Pop(Default)
-	case m.serverBtn.Clicked():
-		m.serverBtn.ToggleEnabled()
+	case m.disconnectBtn.Clicked():
+		Pop(Disconnect)
 	case m.quitBtn.Clicked():
 		Pop(Quit)
 	}

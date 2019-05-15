@@ -73,7 +73,7 @@ func (m *Message) Unpack() (map[string]interface{}, error) {
 		}, nil
 
 	case "init_world":
-
+		// TODO: migrate init_world processing to here
 		/*for _, item := range components {
 			name, pos, rot, err := splitPosReq(item)
 			if err != nil {

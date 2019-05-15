@@ -11,12 +11,18 @@ import (
 
 var (
 	conn         net.Conn
+	stopChan     chan struct{}
 	messageQueue chan server.Message
+
+	maxSendFails    = uint(10)
+	sendFailCounter uint
 )
 
 // Start initialises a connection with a TCP game server.
 func Start(addr string) error {
+	stopChan = make(chan struct{}, 1)
 	messageQueue = make(chan server.Message, 1024)
+	sendFailCounter = 0
 
 	var err error
 	conn, err = net.Dial("tcp", addr)
@@ -31,23 +37,29 @@ func Start(addr string) error {
 		// listen for reply
 		r := bufio.NewReader(conn)
 		for {
-			resp, err := r.ReadString('\n')
-			if err != nil {
-				fmt.Printf("failed to read incoming TCP request: %s\n", err)
-				break
-			}
+			select {
+			case <-stopChan:
+				fmt.Println("TCP client connection disconnected on " + addr)
+				return
 
-			// unmarshal raw request
-			var msg server.Message
-			if err := json.Unmarshal([]byte(resp), &msg); err != nil {
-				fmt.Printf("invalid request received from %s, %s:\n%s\n", addr, err, []byte(resp))
-				continue
-			}
+			default:
+				resp, err := r.ReadString('\n')
+				if err != nil {
+					fmt.Printf("failed to read incoming TCP request: %s\n", err)
+					break
+				}
 
-			messageQueue <- msg
+				// unmarshal raw request
+				var msg server.Message
+				if err := json.Unmarshal([]byte(resp), &msg); err != nil {
+					fmt.Printf("invalid request received from %s, %s:\n%s\n", addr, err, []byte(resp))
+					continue
+				}
+
+				messageQueue <- msg
+			}
 		}
 
-		fmt.Println("TCP server connection disconnected on " + addr)
 	}()
 
 	return nil
@@ -74,5 +86,21 @@ func Send(msg server.Message) {
 
 	if _, err := conn.Write(append(rawMsg, '\n')); err != nil {
 		fmt.Printf("failed to write \"%s\" to %s: %s\n", string(rawMsg), conn.RemoteAddr(), err)
+
+		// if too many write fails occur in a row, then disconnect from server
+		sendFailCounter++
+		if sendFailCounter >= maxSendFails {
+			fmt.Println("too many failed sends occurred - triggering a client disconnect")
+			Disconnect()
+		}
+		return
 	}
+	sendFailCounter = 0
+}
+
+// Disconnect disconnects the client from the server
+func Disconnect() {
+	fmt.Println("disconnecting client")
+	stopChan <- struct{}{}
+	conn.Close()
 }
