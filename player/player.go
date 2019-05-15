@@ -62,10 +62,18 @@ func (p *Player) Right(dt float64) {
 
 // Pos retrieves the player position.
 func (p *Player) Pos() pixel.Vec {
-	p.Lock()
+	p.RLock()
 	pos := p.pos
-	p.Unlock()
+	p.RUnlock()
 	return pos
+}
+
+// Speed retrieves the player speed.
+func (p *Player) Speed() float64 {
+	p.Lock()
+	speed := p.speed
+	p.Unlock()
+	return speed
 }
 
 // SetPos moves the player to the specified coordinates.
@@ -77,9 +85,9 @@ func (p *Player) SetPos(target pixel.Vec) {
 
 // Orientation gets the player's orientation.
 func (p *Player) Orientation() float64 {
-	p.Lock()
+	p.RLock()
 	rot := p.orientation
-	p.Unlock()
+	p.RUnlock()
 	return rot
 }
 
