@@ -10,6 +10,13 @@ import (
 	"unicode"
 )
 
+const (
+	// MinUsernameLength is the minimum username length.
+	MinUsernameLength = 5
+	// MaxUsernameLength is the maximum username length.
+	MaxUsernameLength = 12
+)
+
 // User represents a persistent user record.
 type User struct {
 	conn      net.Conn
@@ -38,6 +45,8 @@ func (u *User) Send(msg Message) {
 // UserDB is a database of users.
 type UserDB struct {
 	users map[string]User
+	rand  *rand.Rand
+
 	sync.RWMutex
 }
 
@@ -81,9 +90,9 @@ func (d *UserDB) Create(username string, conn net.Conn) (User, error) {
 
 	// validate username
 	switch {
-	case len(username) < 5:
+	case len(username) < MinUsernameLength:
 		return newUser, errors.New("username must have a minimum length of 5 characters")
-	case len(username) > 12:
+	case len(username) > MaxUsernameLength:
 		return newUser, errors.New("username length must not exceed 12 characters")
 	}
 
@@ -108,7 +117,7 @@ func (d *UserDB) Create(username string, conn net.Conn) (User, error) {
 	}
 
 	// set initial random position
-	newUser.posRotStr = fmt.Sprintf("%f|%f|%f", float64(rand.Intn(8000)), float64(rand.Intn(8000)), 0.0)
+	newUser.posRotStr = fmt.Sprintf("%f|%f|%f", float64(d.rand.Intn(8000)), float64(d.rand.Intn(8000)), 0.0)
 
 	// insert new user into DB
 	d.Lock()

@@ -11,7 +11,6 @@ import (
 	"github.com/aquilax/go-perlin"
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
-
 	"github.com/jemgunay/procedural-game/file"
 )
 
@@ -42,9 +41,10 @@ func (t *Tile) SetSprite(imageFile file.ImageFile) (err error) {
 }
 
 const (
-	// just grater than 200 to overlap, preventing stitching glitch
-	tileSize  = 201
-	chunkSize = 50
+	// just greater than 200 to overlap, preventing stitching glitch
+	tileSize            = 201
+	tileSizeSpriteScale = 2.0
+	chunkSize           = 50
 
 	// weight/noisiness
 	terrainPerlinAlpha = 2.0
@@ -52,6 +52,8 @@ const (
 	terrainPerlinBeta = 1.0
 	// number of iterations
 	terrainPerlinIterations = 3
+	// scales coordinates before passing them into the perlin noise func
+	tileCoordinateScaleFactor = 11
 )
 
 // TileGrid is a concurrency safe map of tiles.
@@ -65,7 +67,6 @@ type TileGrid struct {
 
 // NewTileGrid creates and initialises a new tile grid.
 func NewTileGrid(seed int64) *TileGrid {
-	rand.Seed(seed)
 	return &TileGrid{
 		tiles:      make(map[string]*Tile),
 		terrainGen: perlin.NewPerlinRandSource(terrainPerlinAlpha, terrainPerlinBeta, terrainPerlinIterations, rand.NewSource(seed)),
@@ -90,7 +91,7 @@ func (g *TileGrid) createTile(imageFile file.ImageFile, x, y int, z float64, mas
 		colourMask: mask,
 		visible:    true,
 		gridPos:    pixel.V(float64(x), float64(y)),
-		absPos:     pixel.IM.Scaled(pixel.V(float64(x), float64(y)), 2.0).Moved(absPos),
+		absPos:     pixel.IM.Scaled(pixel.V(float64(x), float64(y)), tileSizeSpriteScale).Moved(absPos),
 	}
 
 	// insert tile into tile grid
@@ -109,14 +110,35 @@ func (g *TileGrid) Get(gridPos pixel.Vec) *Tile {
 	return tile
 }
 
+// Shader instances.
+var (
+	DefaultShader *file.DefaultFragShader
+	WavyShader    *file.WavyFragShader
+)
+
 // Draw draws all of the tiles in the tile grid.
 func (g *TileGrid) Draw(win *pixelgl.Window) {
+	// TODO: keep track of water & non-water tiles to reduce complexity of iterating over all tiles twice
+	WavyShader.Apply(win)
 	for _, tile := range g.tiles {
 		if !tile.visible {
 			continue
 		}
-		tile.sprite.DrawColorMask(win, tile.absPos, tile.colourMask)
+		if tile.fileName == file.Water {
+			tile.sprite.DrawColorMask(win, tile.absPos, tile.colourMask)
+		}
 	}
+
+	DefaultShader.Apply(win)
+	for _, tile := range g.tiles {
+		if !tile.visible {
+			continue
+		}
+		if tile.fileName != file.Water {
+			tile.sprite.DrawColorMask(win, tile.absPos, tile.colourMask)
+		}
+	}
+
 }
 
 // GenerateChunk generates a chunk of tiles.
@@ -127,7 +149,7 @@ func (g *TileGrid) GenerateChunk() error {
 	for x := 0; x < chunkSize; x++ {
 		for y := 0; y < chunkSize; y++ {
 			// add one to scale z between 0 and 2
-			z := g.terrainGen.Noise2D(float64(x)/11, float64(y)/11) + 1
+			z := g.terrainGen.Noise2D(float64(x)/tileCoordinateScaleFactor, float64(y)/tileCoordinateScaleFactor) + 1
 
 			if z < minZ {
 				minZ = z

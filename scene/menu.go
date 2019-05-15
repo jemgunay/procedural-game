@@ -25,6 +25,9 @@ func NewMainMenu() *MainMenu {
 	// create container sized half the window height
 	container := ui.NewFixedContainer(ui.NewPadding(5), func() pixel.Rect {
 		b := win.Bounds()
+		if b.H() < 500 {
+			return b
+		}
 		return b.Resized(b.Center(), pixel.V(b.Size().X, b.Size().Y*0.5))
 	})
 
@@ -94,6 +97,8 @@ func NewCreateGameMenu() *CreateGameMenu {
 		startBtn:            ui.NewButton("Start", ui.Green, colornames.White),
 	}
 	menu.portTextInput.SetText("9000")
+	menu.portTextInput.SetMaxLength(5)
+	menu.playerNameTextInput.SetMaxLength(server.MaxUsernameLength)
 
 	container.AddElement(menu.backBtn, menu.seedTextInput, menu.portTextInput, menu.playerNameTextInput, menu.startBtn)
 	return menu
@@ -165,6 +170,7 @@ func NewJoinGameMenu() *JoinGameMenu {
 		joinBtn:             ui.NewButton("Join", ui.Green, colornames.White),
 	}
 	menu.hostAddrTextInput.SetText("localhost:9000")
+	menu.playerNameTextInput.SetMaxLength(server.MaxUsernameLength)
 
 	container.AddElement(menu.backBtn, menu.hostAddrTextInput, menu.playerNameTextInput, menu.joinBtn)
 	return menu
@@ -212,6 +218,9 @@ func NewOverlayMenu() *OverlayMenu {
 	// create container sized half the window height
 	container := ui.NewFixedContainer(ui.NewPadding(5), func() pixel.Rect {
 		b := win.Bounds()
+		if b.H() < 350 {
+			return b
+		}
 		return b.Resized(b.Center(), pixel.V(b.Size().X, b.Size().Y*0.5))
 	})
 

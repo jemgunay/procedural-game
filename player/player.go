@@ -28,7 +28,7 @@ type Player struct {
 // Draw draws a player onto a window.
 func (p *Player) Draw(win *pixelgl.Window) {
 	p.RLock()
-	p.sprite.Draw(win, pixel.IM.Moved(p.pos).Rotated(p.pos, p.orientation))
+	p.sprite.Draw(win, pixel.IM.Moved(p.pos).Scaled(p.pos, 0.3).Rotated(p.pos, p.orientation))
 	p.RUnlock()
 }
 
@@ -147,7 +147,7 @@ func (s *Store) Add(username string) (*Player, error) {
 	newPlayer := &Player{
 		name:        username,
 		pos:         pixel.ZV,
-		speed:       500.0,
+		speed:       300.0,
 		orientation: 0.0,
 		sprite:      sprite,
 	}

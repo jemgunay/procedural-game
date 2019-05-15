@@ -10,12 +10,13 @@ import (
 
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
+	"github.com/jemgunay/procedural-game/file"
 	"golang.org/x/image/colornames"
 
 	"github.com/jemgunay/procedural-game/client"
 	"github.com/jemgunay/procedural-game/player"
+	"github.com/jemgunay/procedural-game/scene/world"
 	"github.com/jemgunay/procedural-game/server"
-	"github.com/jemgunay/procedural-game/world"
 )
 
 // Layer is a drawable and updatable scene layer.
@@ -33,7 +34,7 @@ var (
 func Start() {
 	// create window config
 	cfg := pixelgl.WindowConfig{
-		Title:     "Test Game",
+		Title:     "Procedural Game Demo",
 		Bounds:    pixel.R(0, 0, 1024, 768),
 		VSync:     false,
 		Resizable: true,
@@ -47,6 +48,18 @@ func Start() {
 		return
 	}
 
+	// create shaders
+	world.DefaultShader, err = file.NewDefaultFragShader()
+	if err != nil {
+		fmt.Printf("failed create new window: %s\n", err)
+		return
+	}
+	world.WavyShader, err = file.NewWavyFragShader(5)
+	if err != nil {
+		fmt.Printf("failed create new window: %s\n", err)
+		return
+	}
+
 	// push a main menu layer to the scene
 	Push(NewMainMenu())
 
@@ -55,6 +68,7 @@ func Start() {
 	prevTimestamp := time.Now()
 	// main game loop
 	for !win.Closed() {
+
 		dt := time.Since(prevTimestamp).Seconds()
 		prevTimestamp = time.Now()
 
