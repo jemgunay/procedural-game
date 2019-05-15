@@ -10,12 +10,13 @@ import (
 
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
+	"github.com/jemgunay/procedural-game/file"
 	"golang.org/x/image/colornames"
 
 	"github.com/jemgunay/procedural-game/client"
 	"github.com/jemgunay/procedural-game/player"
+	"github.com/jemgunay/procedural-game/scene/world"
 	"github.com/jemgunay/procedural-game/server"
-	"github.com/jemgunay/procedural-game/world"
 )
 
 // Layer is a drawable and updatable scene layer.
@@ -47,6 +48,17 @@ func Start() {
 		return
 	}
 
+	// create shaders
+	world.DefaultShader, err = file.NewDefaultFragShader()
+	if err != nil {
+		fmt.Printf("failed create new window: %s\n", err)
+		return
+	}
+	world.WaveyShader, err = file.NewWaveyFragShader(5)
+	if err != nil {
+		fmt.Printf("failed create new window: %s\n", err)
+		return
+	}
 
 	// push a main menu layer to the scene
 	Push(NewMainMenu())

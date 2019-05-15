@@ -5,16 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"io/ioutil"
+	"time"
+
 	// import png for its side-effects
 	_ "image/png"
 	"os"
 
 	"github.com/faiface/pixel"
-)
-
-var (
-	assetsDir        = "assets/img/"
-	imageAssetsStore = make(map[ImageFile]*pixel.PictureData)
+	"github.com/faiface/pixel/pixelgl"
 )
 
 // LoadAllAssets loads all assets into their appropriate assets store ready to be consumed.
@@ -29,9 +28,11 @@ func LoadAllAssets() error {
 	return nil
 }
 
+var imageAssetsStore = make(map[ImageFile]*pixel.PictureData)
+
 // LoadPicture loads an image file from disk and stores it in the picture assets store.
 func LoadPicture(fileName ImageFile) error {
-	file, err := os.Open(assetsDir + fileName.String())
+	file, err := os.Open("assets/img/" + fileName.String())
 	if err != nil {
 		return err
 	}
@@ -54,7 +55,7 @@ func CreateSprite(fileName ImageFile) (*pixel.Sprite, error) {
 	return pixel.NewSprite(pic, pic.Bounds()), nil
 }
 
-// ImageFile represents an image file name.
+// fileName represents an image file name.
 type ImageFile string
 
 // String satisfies the Stringer interface to convert a file name into a plain string.
@@ -99,24 +100,49 @@ var imageFiles = map[ImageFile]bool{
 	RoadEW:   true,
 }
 
-// LoadShader loads a shader file from disk and stores it in the shader assets store.
-func LoadShader(fileName ImageFile) error {
-	file, err := os.Open(assetsDir + fileName.String())
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	//imageAssetsStore[fileName] = pixel.PictureDataFromImage(img)
-	return nil
+type FragmentShader interface {
+	Apply(*pixelgl.Window)
 }
 
-var (
-	Default ImageFile = "default.frag.glsl"
-	Wavey   ImageFile = "wavey.frag.glsl"
-)
+type DefaultFragShader struct {
+	glsl string
+}
 
-var shaders = map[*ImageFile]string{
-	&Default: "",
-	&Wavey:   "",
+func (s *DefaultFragShader) Apply(win *pixelgl.Window) {
+	win.Canvas().SetFragmentShader(s.glsl)
+}
+
+func NewDefaultFragShader() (*DefaultFragShader, error) {
+	f, err := ioutil.ReadFile("assets/shaders/" + "default.frag.glsl")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load \"wavey.frag.glsl\" shader: %s", err)
+	}
+	return &DefaultFragShader{glsl: string(f)}, nil
+}
+
+type WaveyFragShader struct {
+	glsl      string
+	uTime     float32
+	uSpeed    float32
+	startTime time.Time
+}
+
+func (s *WaveyFragShader) Apply(win *pixelgl.Window) {
+	s.uTime = float32(time.Since(s.startTime).Seconds())
+
+	win.Canvas().SetUniform("uTime", &s.uTime)
+	win.Canvas().SetUniform("uSpeed", &s.uSpeed)
+	win.Canvas().SetFragmentShader(s.glsl)
+}
+
+func NewWaveyFragShader(waveSpeed uint) (*WaveyFragShader, error) {
+	f, err := ioutil.ReadFile("assets/shaders/" + "wavey.frag.glsl")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load \"wavey.frag.glsl\" shader: %s", err)
+	}
+	return &WaveyFragShader{
+		glsl:      string(f),
+		uSpeed:    float32(waveSpeed),
+		startTime: time.Now(),
+	}, nil
 }
