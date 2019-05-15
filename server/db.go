@@ -67,15 +67,21 @@ func (d *UserDB) Update(user User) {
 }
 
 // Broadcast broadcasts a message to all connected users except those in the specified list of exclusion usernames.
-func (d *UserDB) Broadcast(msg Message, excludeUserNames ...string) {
+func (d *UserDB) Broadcast(msg Message, excludeUsernames ...string) {
 	d.RLock()
 	for _, user := range d.users {
-		for _, name := range excludeUserNames {
+		skipUser := false
+		// if current user is in exclusion list, then skip sending message to that user
+		for _, name := range excludeUsernames {
 			if user.name == name {
-				continue
+				skipUser = true
+				break
 			}
-			user.Send(msg)
 		}
+		if skipUser {
+			continue
+		}
+		user.Send(msg)
 	}
 	d.RUnlock()
 }
