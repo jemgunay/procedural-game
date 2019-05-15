@@ -110,15 +110,16 @@ func (g *TileGrid) Get(gridPos pixel.Vec) *Tile {
 	return tile
 }
 
+// Shader instances.
 var (
 	DefaultShader *file.DefaultFragShader
-	WaveyShader   *file.WaveyFragShader
+	WavyShader    *file.WavyFragShader
 )
 
 // Draw draws all of the tiles in the tile grid.
 func (g *TileGrid) Draw(win *pixelgl.Window) {
 	// TODO: keep track of water & non-water tiles to reduce complexity of iterating over all tiles twice
-	WaveyShader.Apply(win)
+	WavyShader.Apply(win)
 	for _, tile := range g.tiles {
 		if !tile.visible {
 			continue

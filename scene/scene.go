@@ -54,7 +54,7 @@ func Start() {
 		fmt.Printf("failed create new window: %s\n", err)
 		return
 	}
-	world.WaveyShader, err = file.NewWaveyFragShader(5)
+	world.WavyShader, err = file.NewWavyFragShader(5)
 	if err != nil {
 		fmt.Printf("failed create new window: %s\n", err)
 		return

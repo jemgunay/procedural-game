@@ -55,7 +55,7 @@ func CreateSprite(fileName ImageFile) (*pixel.Sprite, error) {
 	return pixel.NewSprite(pic, pic.Bounds()), nil
 }
 
-// fileName represents an image file name.
+// ImageFile represents an image file name.
 type ImageFile string
 
 // String satisfies the Stringer interface to convert a file name into a plain string.
@@ -100,34 +100,35 @@ var imageFiles = map[ImageFile]bool{
 	RoadEW:   true,
 }
 
-type FragmentShader interface {
-	Apply(*pixelgl.Window)
-}
-
+// DefaultFragShader represents the standard shader with no effects applied.
 type DefaultFragShader struct {
 	glsl string
 }
 
+// Apply applies the DefaultFragShader to a window.
 func (s *DefaultFragShader) Apply(win *pixelgl.Window) {
 	win.Canvas().SetFragmentShader(s.glsl)
 }
 
+// NewDefaultFragShader creates and initialises a new DefaultFragShader.
 func NewDefaultFragShader() (*DefaultFragShader, error) {
 	f, err := ioutil.ReadFile("assets/shaders/" + "default.frag.glsl")
 	if err != nil {
-		return nil, fmt.Errorf("failed to load \"wavey.frag.glsl\" shader: %s", err)
+		return nil, fmt.Errorf("failed to load \"default.frag.glsl\" shader: %s", err)
 	}
 	return &DefaultFragShader{glsl: string(f)}, nil
 }
 
-type WaveyFragShader struct {
+// WavyFragShader represents a wavy water ripple effect shader.
+type WavyFragShader struct {
 	glsl      string
 	uTime     float32
 	uSpeed    float32
 	startTime time.Time
 }
 
-func (s *WaveyFragShader) Apply(win *pixelgl.Window) {
+// Apply applies the WavyFragShader to a window and steps the shader's uTime.
+func (s *WavyFragShader) Apply(win *pixelgl.Window) {
 	s.uTime = float32(time.Since(s.startTime).Seconds())
 
 	win.Canvas().SetUniform("uTime", &s.uTime)
@@ -135,12 +136,13 @@ func (s *WaveyFragShader) Apply(win *pixelgl.Window) {
 	win.Canvas().SetFragmentShader(s.glsl)
 }
 
-func NewWaveyFragShader(waveSpeed uint) (*WaveyFragShader, error) {
-	f, err := ioutil.ReadFile("assets/shaders/" + "wavey.frag.glsl")
+// NewWavyFragShader creates and initialises a new WavyFragShader.
+func NewWavyFragShader(waveSpeed uint) (*WavyFragShader, error) {
+	f, err := ioutil.ReadFile("assets/shaders/" + "wavy.frag.glsl")
 	if err != nil {
-		return nil, fmt.Errorf("failed to load \"wavey.frag.glsl\" shader: %s", err)
+		return nil, fmt.Errorf("failed to load \"wavy.frag.glsl\" shader: %s", err)
 	}
-	return &WaveyFragShader{
+	return &WavyFragShader{
 		glsl:      string(f),
 		uSpeed:    float32(waveSpeed),
 		startTime: time.Now(),
