@@ -48,9 +48,6 @@ func Start(addr, seed string) error {
 				select {
 				case <-stopChan:
 					// shutdown server
-					// TODO: broadcast shutdown to all users
-					// TODO: add waitgroup to complete all connections before killing server so that shutdown messages can be sent to all clients
-					fmt.Println("TCP server shut down")
 					return
 
 				default:
@@ -60,7 +57,6 @@ func Start(addr, seed string) error {
 			// handle connection
 			go handleConn(conn)
 		}
-
 	}()
 
 	return nil
@@ -68,7 +64,7 @@ func Start(addr, seed string) error {
 
 // Shutdown gracefully shuts down the TCP server.
 func Shutdown() {
-	fmt.Println("server shutting down")
+	fmt.Println("TCP server shutting down")
 	userDB.Broadcast(Message{
 		Type:  "server_shutdown",
 	})
@@ -87,6 +83,16 @@ func handleConn(conn net.Conn) {
 	fmt.Println("TCP client connection established on " + addr)
 
 	var user User
+	defer func() {
+		// clean up on messy connection closure
+		if user.conn != nil {
+			userDB.Disconnect(user)
+		}
+
+		// client disconnecting
+		fmt.Println("TCP client connection disconnected on " + addr)
+	}()
+
 	for {
 		select {
 		case <-user.exitCh:
@@ -97,7 +103,7 @@ func handleConn(conn net.Conn) {
 		resp, err := bufio.NewReader(conn).ReadString('\n')
 		if err != nil {
 			fmt.Printf("failed to read incoming TCP request: %s\n", err)
-			break
+			return
 		}
 
 		// unmarshal raw request
@@ -132,14 +138,6 @@ func handleConn(conn net.Conn) {
 			fmt.Printf("unsupported request type for connected stage: %s\n", msg.Type)
 		}
 	}
-
-	// clean up on messy connection closure
-	if user.conn != nil {
-		userDB.Disconnect(user)
-	}
-
-	// client disconnecting
-	fmt.Println("TCP client connection disconnected on " + addr)
 }
 
 // handles registering (signing up) and reconnecting (logging in) users on an established connection, associating the

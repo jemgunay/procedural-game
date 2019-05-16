@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -32,13 +31,8 @@ func (u *User) Send(msg Message) {
 		return
 	}
 
-	rawMsg, err := json.Marshal(msg)
-	if err != nil {
-		fmt.Printf("failed to process outbound request: %s:\n%v\n", err, msg)
-		return
-	}
-
-	if _, err := u.conn.Write(append(rawMsg, '\n')); err != nil {
+	rawMsg := msg.Pack()
+	if _, err := u.conn.Write(rawMsg); err != nil {
 		fmt.Printf("failed to write \"%s\" to %s: %s\n", string(rawMsg), u.conn.RemoteAddr(), err)
 	}
 }

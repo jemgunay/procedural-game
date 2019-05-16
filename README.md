@@ -23,11 +23,15 @@ Generated zip archive can be found in the `build` directory.
 
 ## TODO
 
-- Weapons/projectiles (and ability for players to die).
-- UI for stopping server/disconnecting from server.
-- Procedurally generated houses with accessible interiors.
-- Continuous world tile generation upon exploring unseen territory.
+- Weapons:
+    - Bullet position & collisions processed server side?
+    - Weapon & ammo types/ammo pick ups.
+    - Player death & random position respawning.
+- Slow player down in sand/water:
+    - Only show head in water and prevent shooting.
+- Procedurally generated buildings.
+    - Accessible interiors?
 - Cars - using A* to navigate between road nodes.
 - Store/read server state to/from disk to allow restarts.
 - FPS counter enable/disable.
-- Only show head in water.
+- Continuous world tile generation upon exploring unseen territory.

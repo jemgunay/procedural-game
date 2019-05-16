@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strconv"
@@ -11,13 +12,21 @@ import (
 
 // Message represents an incoming request from a client or an outgoing request from the server.
 type Message struct {
-	Type  string `json:"type"`
-	Value string `json:"val,omitempty"`
+	Type  string `json:"t"`
+	Value string `json:"v"`
+}
+
+// Pack marshals a Message into a string for transmitting.
+func (m Message) Pack() []byte {
+	buf := bytes.Buffer{}
+	buf.WriteString(`{"t":"` + m.Type + `","v":"` + m.Value + `"}`)
+	buf.WriteByte('\n')
+	return buf.Bytes()
 }
 
 // Unpack produces a map of validated and processed data based on a message's type. The map's values must be type
 // asserted to extract the typed data.
-func (m *Message) Unpack() (map[string]interface{}, error) {
+func (m Message) Unpack() (map[string]interface{}, error) {
 	components := strings.Split(m.Value, "|")
 
 	switch m.Type {

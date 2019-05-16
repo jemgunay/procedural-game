@@ -14,6 +14,7 @@ import (
 // Store is a player store which can be concurrently accessed safely.
 type Store struct {
 	players map[string]*Player
+	bullets []*Bullet
 	sync.RWMutex
 }
 
@@ -54,7 +55,7 @@ func (s *Store) Add(username string) (*Player, error) {
 	newPlayer := &Player{
 		name:        username,
 		pos:         pixel.ZV,
-		speed:       300.0,
+		baseSpeed:   300.0,
 		orientation: 0.0,
 		sprite:      sprite,
 	}
@@ -91,7 +92,7 @@ func (s *Store) String() string {
 		b.WriteString("> " + p.name + "\n")
 		b.WriteString("\tpos: " + p.pos.String() + "\n")
 		b.WriteString("\trot: " + fmt.Sprint(p.orientation) + "\n")
-		b.WriteString("\tspeed: " + fmt.Sprint(p.speed) + "\n")
+		b.WriteString("\tspeed: " + fmt.Sprint(p.baseSpeed) + "\n")
 		p.RUnlock()
 	}
 	s.RUnlock()

@@ -48,7 +48,8 @@ func Start(addr string) error {
 				resp, err := r.ReadString('\n')
 				if err != nil {
 					fmt.Printf("failed to read incoming TCP request: %s\n", err)
-					break
+					Disconnect()
+					return
 				}
 
 				// unmarshal raw request

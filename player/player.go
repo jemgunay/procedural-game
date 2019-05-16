@@ -14,7 +14,7 @@ type Player struct {
 	name            string
 	pos             pixel.Vec
 	prevPos         pixel.Vec
-	speed           float64
+	baseSpeed       float64
 	orientation     float64
 	prevOrientation float64
 	sprite          *pixel.Sprite
@@ -32,28 +32,28 @@ func (p *Player) Draw(win *pixelgl.Window) {
 // Up moves the player upwards.
 func (p *Player) Up(dt float64) {
 	p.Lock()
-	p.pos.Y += p.speed * dt
+	p.pos.Y += p.baseSpeed * dt
 	p.Unlock()
 }
 
 // Down moves the player downwards.
 func (p *Player) Down(dt float64) {
 	p.Lock()
-	p.pos.Y -= p.speed * dt
+	p.pos.Y -= p.baseSpeed * dt
 	p.Unlock()
 }
 
 // Left moves the player leftwards.
 func (p *Player) Left(dt float64) {
 	p.Lock()
-	p.pos.X -= p.speed * dt
+	p.pos.X -= p.baseSpeed * dt
 	p.Unlock()
 }
 
 // Right moves the player rightwards.
 func (p *Player) Right(dt float64) {
 	p.Lock()
-	p.pos.X += p.speed * dt
+	p.pos.X += p.baseSpeed * dt
 	p.Unlock()
 }
 
@@ -65,10 +65,10 @@ func (p *Player) Pos() pixel.Vec {
 	return pos
 }
 
-// Speed retrieves the player speed.
+// Speed retrieves the player baseSpeed.
 func (p *Player) Speed() float64 {
 	p.Lock()
-	speed := p.speed
+	speed := p.baseSpeed
 	p.Unlock()
 	return speed
 }
@@ -76,6 +76,7 @@ func (p *Player) Speed() float64 {
 // SetPos moves the player to the specified coordinates.
 func (p *Player) SetPos(target pixel.Vec) {
 	p.Lock()
+	p.prevPos = p.pos
 	p.pos = target
 	p.Unlock()
 }
@@ -91,6 +92,7 @@ func (p *Player) Orientation() float64 {
 // SetOrientation sets the player's orientation.
 func (p *Player) SetOrientation(target float64) {
 	p.Lock()
+	p.prevOrientation = p.orientation
 	p.orientation = target
 	p.Unlock()
 }
@@ -98,6 +100,7 @@ func (p *Player) SetOrientation(target float64) {
 // PointTo rotates the player to face the specified target.
 func (p *Player) PointTo(target pixel.Vec) {
 	p.Lock()
+	p.prevOrientation = p.orientation
 	p.orientation = math.Atan2(target.Y-p.pos.Y, target.X-p.pos.X)
 	p.Unlock()
 }
@@ -108,4 +111,10 @@ func (p *Player) HasMoved() bool {
 	moved := p.pos != p.prevPos && p.orientation != p.prevOrientation
 	p.RUnlock()
 	return moved
+}
+
+type Bullet struct {
+	pos      pixel.Vec
+	velocity pixel.Vec
+	baseSpeed    float32
 }
