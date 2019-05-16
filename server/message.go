@@ -66,30 +66,11 @@ func (m *Message) Unpack() (map[string]interface{}, error) {
 
 		// unpacked response
 		return map[string]interface{}{
-			"uuid": components[0],
-			"seed": components[1],
-			"pos":  pixel.V(x, y),
-			"rot":  rot,
+			"username": components[0],
+			"seed":     components[1],
+			"pos":      pixel.V(x, y),
+			"rot":      rot,
 		}, nil
-
-	case "init_world":
-
-		/*for _, item := range components {
-			name, pos, rot, err := splitPosReq(item)
-			if err != nil {
-				fmt.Printf("failed to split pos request: %s", err)
-				break
-			}
-
-			// add new player
-			p, err := g.players.Add(name)
-			if err != nil {
-				fmt.Printf("failed to add player \"%s\": %s\n", name, err)
-				break
-			}
-			p.SetPos(pos)
-			p.SetOrientation(rot)
-		}*/
 	}
 
 	return nil, fmt.Errorf("unsupported message type supplied: %s", m.Type)

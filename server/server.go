@@ -68,6 +68,11 @@ func Start(addr, seed string) error {
 
 // Shutdown gracefully shuts down the TCP server.
 func Shutdown() {
+	fmt.Println("server shutting down")
+	userDB.Broadcast(Message{
+		Type:  "server_shutdown",
+	})
+	time.Sleep(time.Millisecond * 500)
 	stopChan <- struct{}{}
 	listener.Close()
 	// TODO: wg.Wait()
@@ -83,6 +88,12 @@ func handleConn(conn net.Conn) {
 
 	var user User
 	for {
+		select {
+		case <-user.exitCh:
+			return
+		default:
+		}
+
 		resp, err := bufio.NewReader(conn).ReadString('\n')
 		if err != nil {
 			fmt.Printf("failed to read incoming TCP request: %s\n", err)

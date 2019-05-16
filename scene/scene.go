@@ -89,8 +89,9 @@ type LayerResult string
 
 // Layer state constants.
 const (
-	Default LayerResult = "default"
-	Quit    LayerResult = "quit"
+	Default    LayerResult = "default"
+	Disconnect LayerResult = "disconnect"
+	Quit       LayerResult = "quit"
 )
 
 // LayerWrapper associates a LayerResult channel with a Layer.
@@ -139,6 +140,7 @@ type Game struct {
 	prevMousePos  pixel.Vec
 	locked        bool
 	overlayResult chan LayerResult
+	exitCh        chan struct{}
 }
 
 // GameType is used to differentiate between a client and server game instance.
@@ -164,12 +166,20 @@ func NewGame(gameType GameType, addr string, playerName string) (game *Game, err
 
 	// wait for register success
 	var (
-		seed, uuid string
-		pos        pixel.Vec
-		rot        float64
+		seed, username string
+		pos            pixel.Vec
+		rot            float64
 	)
+	// TODO: add a connect timeout
 	for {
-		switch msg := client.Poll(); msg.Type {
+		msg, err := client.Poll()
+		if err == client.ErrQueueEmpty {
+			continue
+		} else if err == client.ErrQueueClosed {
+			return nil, fmt.Errorf("failed to handshake with server: %s", err)
+		}
+
+		switch msg.Type {
 		case "register_success", "connect_success":
 			data, err := msg.Unpack()
 			if err != nil {
@@ -177,11 +187,11 @@ func NewGame(gameType GameType, addr string, playerName string) (game *Game, err
 			}
 
 			seed = data["seed"].(string)
-			uuid = data["uuid"].(string)
+			username = data["username"].(string)
 			pos = data["pos"].(pixel.Vec)
 			rot = data["rot"].(float64)
 
-			fmt.Printf("user UUID: %s\n", uuid)
+			fmt.Printf("new user with username: %s\n", username)
 
 		case "register_failure", "connect_failure":
 			return nil, errors.New(msg.Value)
@@ -223,6 +233,7 @@ func NewGame(gameType GameType, addr string, playerName string) (game *Game, err
 		mainPlayer: mainPlayer,
 		camPos:     mainPlayer.Pos(),
 		camScale:   0.5,
+		exitCh:     make(chan struct{}, 1),
 	}
 
 	// receive and process incoming requests from the server
@@ -235,36 +246,22 @@ func NewGame(gameType GameType, addr string, playerName string) (game *Game, err
 // player updates.
 func (g *Game) processServerUpdates() {
 	for {
-		switch msg := client.Poll(); msg.Type {
-		// new player joined the game
-		case "user_joined":
-			if _, err := g.players.Add(msg.Value); err != nil {
-				fmt.Printf("failed to create user: %s", err)
-				break
-			}
-			fmt.Println(msg.Value + " joined the game!")
+		// exit from poll loop if game has disconnected
+		select {
+		case <-g.exitCh:
+			return
+		default:
+		}
 
-		// initialise world and already existing players after joining a new game
-		case "init_world":
-			fmt.Printf("init world request: %s\n", msg.Value)
-			items := strings.Split(msg.Value, "/")
-			for _, item := range items {
-				name, pos, rot, err := splitPosReq(item)
-				if err != nil {
-					fmt.Printf("failed to split pos request: %s", err)
-					break
-				}
+		// poll for updates from the server
+		msg, err := client.Poll()
+		if err == client.ErrQueueEmpty {
+			continue
+		} else if err == client.ErrQueueClosed {
+			g.Disconnect()
+		}
 
-				// add new player
-				p, err := g.players.Add(name)
-				if err != nil {
-					fmt.Printf("failed to add player \"%s\": %s\n", name, err)
-					break
-				}
-				p.SetPos(pos)
-				p.SetOrientation(rot)
-			}
-
+		switch msg.Type {
 		// update a player's position and orientation
 		case "pos":
 			data, err := msg.Unpack()
@@ -282,10 +279,44 @@ func (g *Game) processServerUpdates() {
 			p.SetPos(data["pos"].(pixel.Vec))
 			p.SetOrientation(data["rot"].(float64))
 
+		// new player joined the game
+		case "user_joined":
+			if _, err := g.players.Add(msg.Value); err != nil {
+				fmt.Printf("failed to create user: %s", err)
+				break
+			}
+			fmt.Println(msg.Value + " joined the game!")
+
+		// initialise world and already existing players after joining a new game
+		case "init_world":
+			// TODO: migrate into msg.Unpack()
+			fmt.Printf("init world request: %s\n", msg.Value)
+			items := strings.Split(msg.Value, "/")
+			for _, item := range items {
+				name, pos, rot, err := splitPosReq(item)
+				if err != nil {
+					fmt.Printf("failed to split pos request: %s", err)
+					continue
+				}
+
+				// add new player
+				fmt.Println(g.players)
+				p, err := g.players.Add(name)
+				if err != nil {
+					fmt.Printf("failed to add player \"%s\": %s\n", name, err)
+					continue
+				}
+				p.SetPos(pos)
+				p.SetOrientation(rot)
+			}
+
 		// remove a player from the game
 		case "disconnect":
 			fmt.Println(msg.Value + " left the game!")
 			g.players.Remove(msg.Value)
+
+		case "server_shutdown":
+			g.Disconnect()
 		}
 	}
 }
@@ -325,6 +356,9 @@ func (g *Game) Update(dt float64) {
 		case res := <-g.overlayResult:
 			if res == Quit {
 				win.SetClosed(true)
+				return
+			} else if res == Disconnect {
+				g.Disconnect()
 				return
 			}
 			g.locked = false
@@ -379,10 +413,9 @@ func (g *Game) Update(dt float64) {
 	}
 
 	// smooth camera tracking of player
-	pos := g.mainPlayer.Pos()
-	lerp := g.mainPlayer.Speed() * 0.01
-	g.camPos.X += (pos.X - g.camPos.X) * lerp * dt
-	g.camPos.Y += (pos.Y - g.camPos.Y) * lerp * dt
+	lerp := g.mainPlayer.Speed() * 0.01 * dt
+	camDelta := g.mainPlayer.Pos().Sub(g.camPos).Scaled(lerp)
+	g.camPos = g.camPos.Add(camDelta)
 }
 
 // Draw draws the game layer to the window.
@@ -396,4 +429,18 @@ func (g *Game) Draw() {
 	g.tileGrid.Draw(win)
 	// draw players
 	g.players.Draw(win)
+}
+
+// Disconnect triggers a client disconnect, followed by a server shutdown if a server is being hosted. The main menu is
+// then displayed.
+func (g *Game) Disconnect() {
+	// disconnect local client before shutting down server
+	client.Disconnect()
+	g.exitCh <- struct{}{}
+
+	if g.gameType == Server {
+		server.Shutdown()
+	}
+	Pop(Default)
+	Push(NewMainMenu())
 }

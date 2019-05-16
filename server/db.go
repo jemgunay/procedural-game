@@ -23,6 +23,7 @@ type User struct {
 	name      string
 	blocked   bool
 	posRotStr string
+	exitCh    chan struct{}
 }
 
 // Send marshals and writes a message to a user's client.
@@ -59,23 +60,29 @@ func (d *UserDB) Get(username string) (User, bool) {
 	return user, ok
 }
 
-// Update safely updates a user by its UUID.
+// Update safely updates a user by its username.
 func (d *UserDB) Update(user User) {
 	d.Lock()
 	d.users[user.name] = user
 	d.Unlock()
 }
 
-// Broadcast broadcasts a message to all connected users except those in the specified list of exclusion UUIDs.
-func (d *UserDB) Broadcast(msg Message, excludeUserNames ...string) {
+// Broadcast broadcasts a message to all connected users except those in the specified list of exclusion usernames.
+func (d *UserDB) Broadcast(msg Message, excludeUsernames ...string) {
 	d.RLock()
 	for _, user := range d.users {
-		for _, name := range excludeUserNames {
+		skipUser := false
+		// if current user is in exclusion list, then skip sending message to that user
+		for _, name := range excludeUsernames {
 			if user.name == name {
-				continue
+				skipUser = true
+				break
 			}
-			user.Send(msg)
 		}
+		if skipUser {
+			continue
+		}
+		user.Send(msg)
 	}
 	d.RUnlock()
 }
@@ -84,8 +91,9 @@ func (d *UserDB) Broadcast(msg Message, excludeUserNames ...string) {
 func (d *UserDB) Create(username string, conn net.Conn) (User, error) {
 	// create new user at the top of this func so that the conn can be consumed on error
 	newUser := User{
-		name: username,
-		conn: conn,
+		name:   username,
+		conn:   conn,
+		exitCh: make(chan struct{}, 1),
 	}
 
 	// validate username
