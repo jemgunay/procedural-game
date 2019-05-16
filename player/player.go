@@ -3,7 +3,9 @@ package player
 
 import (
 	"errors"
+	"fmt"
 	"math"
+	"strings"
 	"sync"
 
 	"github.com/faiface/pixel"
@@ -182,4 +184,20 @@ func (s *Store) Draw(win *pixelgl.Window) {
 		p.Draw(win)
 	}
 	s.RUnlock()
+}
+
+// String produces a string containing descriptions of all players.
+func (s *Store) String() string {
+	b := strings.Builder{}
+	s.RLock()
+	for _, p := range s.players {
+		p.RLock()
+		b.WriteString("> " + p.name + "\n")
+		b.WriteString("\tpos: " + p.pos.String() + "\n")
+		b.WriteString("\trot: " + fmt.Sprint(p.orientation) + "\n")
+		b.WriteString("\tspeed: " + fmt.Sprint(p.speed) + "\n")
+		p.RUnlock()
+	}
+	s.RUnlock()
+	return b.String()
 }

@@ -7,6 +7,7 @@ import (
 	"net"
 
 	"github.com/jemgunay/procedural-game/server"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -40,6 +41,7 @@ func Start(addr string) error {
 			select {
 			case <-stopChan:
 				fmt.Println("TCP client connection disconnected on " + addr)
+				close(messageQueue)
 				return
 
 			default:
@@ -59,20 +61,29 @@ func Start(addr string) error {
 				messageQueue <- msg
 			}
 		}
-
 	}()
 
 	return nil
 }
 
+var (
+	// ErrQueueClosed indicates that a message queue has been closed and that no more messages will be provided by it.
+	ErrQueueClosed = errors.New("message queue closed")
+	// ErrQueueEmpty indicates that there are currently no messages in the message queue.
+	ErrQueueEmpty = errors.New("message queue is empty")
+)
+
 // Poll pulls a message from the queue and returns it to be processed by the scene. If there are no messages in
 // the queue, an empty Message is returned.
-func Poll() server.Message {
+func Poll() (server.Message, error) {
 	select {
-	case msg := <-messageQueue:
-		return msg
+	case msg, ok := <-messageQueue:
+		if ok {
+			return msg, nil
+		}
+		return server.Message{}, ErrQueueClosed
 	default:
-		return server.Message{}
+		return server.Message{}, ErrQueueEmpty
 	}
 }
 
@@ -98,9 +109,8 @@ func Send(msg server.Message) {
 	sendFailCounter = 0
 }
 
-// Disconnect disconnects the client from the server
+// Disconnect disconnects the client from the server.
 func Disconnect() {
 	fmt.Println("disconnecting client")
 	stopChan <- struct{}{}
-	conn.Close()
 }

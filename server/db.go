@@ -23,6 +23,7 @@ type User struct {
 	name      string
 	blocked   bool
 	posRotStr string
+	exitCh    chan struct{}
 }
 
 // Send marshals and writes a message to a user's client.
@@ -90,8 +91,9 @@ func (d *UserDB) Broadcast(msg Message, excludeUsernames ...string) {
 func (d *UserDB) Create(username string, conn net.Conn) (User, error) {
 	// create new user at the top of this func so that the conn can be consumed on error
 	newUser := User{
-		name: username,
-		conn: conn,
+		name:   username,
+		conn:   conn,
+		exitCh: make(chan struct{}, 1),
 	}
 
 	// validate username

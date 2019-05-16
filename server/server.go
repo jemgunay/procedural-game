@@ -84,6 +84,12 @@ func handleConn(conn net.Conn) {
 
 	var user User
 	for {
+		select {
+		case <-user.exitCh:
+			return
+		default:
+		}
+
 		resp, err := bufio.NewReader(conn).ReadString('\n')
 		if err != nil {
 			fmt.Printf("failed to read incoming TCP request: %s\n", err)

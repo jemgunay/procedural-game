@@ -140,6 +140,7 @@ type Game struct {
 	prevMousePos  pixel.Vec
 	locked        bool
 	overlayResult chan LayerResult
+	exitCh        chan struct{}
 }
 
 // GameType is used to differentiate between a client and server game instance.
@@ -171,7 +172,14 @@ func NewGame(gameType GameType, addr string, playerName string) (game *Game, err
 	)
 	// TODO: add a connect timeout
 	for {
-		switch msg := client.Poll(); msg.Type {
+		msg, err := client.Poll()
+		if err == client.ErrQueueEmpty {
+			continue
+		} else if err == client.ErrQueueClosed {
+			return nil, fmt.Errorf("failed to handshake with server: %s", err)
+		}
+
+		switch msg.Type {
 		case "register_success", "connect_success":
 			data, err := msg.Unpack()
 			if err != nil {
@@ -225,6 +233,7 @@ func NewGame(gameType GameType, addr string, playerName string) (game *Game, err
 		mainPlayer: mainPlayer,
 		camPos:     mainPlayer.Pos(),
 		camScale:   0.5,
+		exitCh:     make(chan struct{}, 1),
 	}
 
 	// receive and process incoming requests from the server
@@ -237,7 +246,22 @@ func NewGame(gameType GameType, addr string, playerName string) (game *Game, err
 // player updates.
 func (g *Game) processServerUpdates() {
 	for {
-		switch msg := client.Poll(); msg.Type {
+		// exit from poll loop if game has disconnected
+		select {
+		case <-g.exitCh:
+			return
+		default:
+		}
+
+		// poll for updates from the server
+		msg, err := client.Poll()
+		if err == client.ErrQueueEmpty {
+			continue
+		} else if err == client.ErrQueueClosed {
+			g.Disconnect()
+		}
+
+		switch msg.Type {
 		// update a player's position and orientation
 		case "pos":
 			data, err := msg.Unpack()
@@ -265,6 +289,7 @@ func (g *Game) processServerUpdates() {
 
 		// initialise world and already existing players after joining a new game
 		case "init_world":
+			// TODO: migrate into msg.Unpack()
 			fmt.Printf("init world request: %s\n", msg.Value)
 			items := strings.Split(msg.Value, "/")
 			for _, item := range items {
@@ -275,6 +300,7 @@ func (g *Game) processServerUpdates() {
 				}
 
 				// add new player
+				fmt.Println(g.players)
 				p, err := g.players.Add(name)
 				if err != nil {
 					fmt.Printf("failed to add player \"%s\": %s\n", name, err)
@@ -402,9 +428,12 @@ func (g *Game) Draw() {
 	g.players.Draw(win)
 }
 
+// Disconnect triggers a client disconnect, followed by a server shutdown if a server is being hosted. The main menu is
+// then displayed.
 func (g *Game) Disconnect() {
 	// disconnect local client before shutting down server
 	client.Disconnect()
+	g.exitCh <- struct{}{}
 
 	if g.gameType == Server {
 		server.Shutdown()
