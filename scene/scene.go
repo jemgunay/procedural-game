@@ -392,7 +392,7 @@ func (g *Game) Update(dt float64) {
 	}
 	if win.JustPressed(pixelgl.KeyEscape) {
 		g.locked = true
-		g.overlayResult = Push(NewOverlayMenu())
+		g.overlayResult = Push(NewOverlayMenu(g.gameType))
 	}
 
 	// handle mouse movement

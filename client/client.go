@@ -1,3 +1,4 @@
+// Package client handles retrieving and sending messages from and to a game server instance.
 package client
 
 import (
@@ -10,19 +11,24 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	maxSendFails           = uint(10)
+	messageQueueBufferSize = 2048
+)
+
 var (
 	conn         net.Conn
-	stopChan     chan struct{}
 	messageQueue chan server.Message
+	connected    bool
 
-	maxSendFails    = uint(10)
 	sendFailCounter uint
+	stopChan        chan struct{}
 )
 
 // Start initialises a connection with a TCP game server.
 func Start(addr string) error {
 	stopChan = make(chan struct{}, 1)
-	messageQueue = make(chan server.Message, 1024)
+	messageQueue = make(chan server.Message, messageQueueBufferSize)
 	sendFailCounter = 0
 
 	var err error
@@ -31,6 +37,7 @@ func Start(addr string) error {
 		return fmt.Errorf("failed to bind TCP on port %s: %s", addr, err)
 	}
 
+	connected = true
 	fmt.Println("TCP server connection established on " + addr)
 
 	go func() {
@@ -49,7 +56,7 @@ func Start(addr string) error {
 				if err != nil {
 					fmt.Printf("failed to read incoming TCP request: %s\n", err)
 					Disconnect()
-					return
+					continue
 				}
 
 				// unmarshal raw request
@@ -112,6 +119,9 @@ func Send(msg server.Message) {
 
 // Disconnect disconnects the client from the server.
 func Disconnect() {
+	if !connected {
+		return
+	}
 	fmt.Println("disconnecting client")
 	stopChan <- struct{}{}
 }

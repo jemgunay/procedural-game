@@ -112,9 +112,3 @@ func (p *Player) HasMoved() bool {
 	p.RUnlock()
 	return moved
 }
-
-type Bullet struct {
-	pos      pixel.Vec
-	velocity pixel.Vec
-	baseSpeed    float32
-}
