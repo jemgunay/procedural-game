@@ -314,6 +314,9 @@ func (g *Game) processServerUpdates() {
 		case "disconnect":
 			fmt.Println(msg.Value + " left the game!")
 			g.players.Remove(msg.Value)
+
+		case "server_shutdown":
+			g.Disconnect()
 		}
 	}
 }
