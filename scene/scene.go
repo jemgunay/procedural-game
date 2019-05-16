@@ -130,8 +130,8 @@ func Count() int {
 type Game struct {
 	gameType   GameType
 	tileGrid   *world.TileGrid
-	mainPlayer *player.Player
 	players    *player.Store
+	mainPlayer player.MainPlayer
 
 	camPos        pixel.Vec
 	camMatrix     pixel.Matrix
@@ -217,9 +217,13 @@ func NewGame(gameType GameType, addr string, playerName string) (game *Game, err
 
 	// create player store & new main player
 	playerStore := player.NewStore()
-	mainPlayer, err := playerStore.Add(playerName)
+	newPlayer, err := playerStore.Add(playerName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create player: %s", err)
+	}
+	mainPlayer := player.MainPlayer{
+		Player:  newPlayer,
+		Armoury: player.NewArmoury(),
 	}
 	mainPlayer.SetPos(pos)
 	mainPlayer.SetOrientation(rot)

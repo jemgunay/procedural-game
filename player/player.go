@@ -9,6 +9,11 @@ import (
 	"github.com/faiface/pixel/pixelgl"
 )
 
+type MainPlayer struct {
+	*Player
+	*Armoury
+}
+
 // Player represents a drawable client player.
 type Player struct {
 	name            string

@@ -14,7 +14,6 @@ import (
 // Store is a player store which can be concurrently accessed safely.
 type Store struct {
 	players map[string]*Player
-	bullets []*Bullet
 	sync.RWMutex
 }
 
