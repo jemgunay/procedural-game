@@ -2,7 +2,7 @@
 
 A cheeky 2D multiplayer procedural terrain game demo made using the pixel game engine.
 
-WASD to move character, RF to zoom in/out.
+WASD to move character, Up/Down to zoom in/out.
 
 ## Build & Run
 

@@ -7,21 +7,13 @@ import (
 )
 
 type Armoury struct {
-	AmmoStore map[Ammo]int
-	Weapons   []ProjectileWeapon
+	AmmoStore     map[Ammo]int
+	Weapons       []ProjectileWeapon
+	CurrentWeapon int
 }
 
-func NewArmoury() *Armoury {
-	return &Armoury{
-		AmmoStore: map[Ammo]int{
-			PistolAmmo:  14,
-			RifleAmmo:   60,
-			ShotgunAmmo: 20,
-		},
-		Weapons: []ProjectileWeapon{
-			weapons["deagle"],
-		},
-	}
+func (a *Armoury) Update(dt float64) {
+
 }
 
 type Ammo string
@@ -52,6 +44,7 @@ type WeaponState string
 
 const (
 	Ready     WeaponState = "ready"
+	Firing    WeaponState = "firing"
 	Reloading WeaponState = "reloading"
 )
 

@@ -92,6 +92,7 @@ func (s *Store) String() string {
 		b.WriteString("\tpos: " + p.pos.String() + "\n")
 		b.WriteString("\trot: " + fmt.Sprint(p.orientation) + "\n")
 		b.WriteString("\tspeed: " + fmt.Sprint(p.baseSpeed) + "\n")
+		b.WriteString("\nhealth: " + fmt.Sprint(p.health) + "\n")
 		p.RUnlock()
 	}
 	s.RUnlock()

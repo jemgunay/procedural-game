@@ -66,7 +66,7 @@ func Start(addr, seed string) error {
 func Shutdown() {
 	fmt.Println("TCP server shutting down")
 	userDB.Broadcast(Message{
-		Type:  "server_shutdown",
+		Type: "server_shutdown",
 	})
 	time.Sleep(time.Millisecond * 500)
 	stopChan <- struct{}{}
@@ -127,9 +127,9 @@ func handleConn(conn net.Conn) {
 			// destroy reference to local user
 			user = User{}
 
-		case "pos":
+		case "vitals":
 			// write pos msg right back to other clients
-			user.posRotStr = msg.Value
+			user.vitals = msg.Value
 			userDB.Update(user)
 			msg.Value = user.name + "|" + msg.Value
 			userDB.Broadcast(msg, user.name)
@@ -166,7 +166,7 @@ func establishUser(msg Message, conn net.Conn) (user User) {
 		// respond with register success
 		user.Send(Message{
 			Type:  "register_success",
-			Value: user.name + "|" + worldSeed + "|" + user.posRotStr,
+			Value: worldSeed + "|" + user.name + "|" + user.vitals,
 		})
 	} else {
 		// attempt to establish connection for existing user
@@ -182,7 +182,7 @@ func establishUser(msg Message, conn net.Conn) (user User) {
 		// respond with connect success
 		user.Send(Message{
 			Type:  "connect_success",
-			Value: user.name + "|" + worldSeed + "|" + user.posRotStr,
+			Value: worldSeed + "|" + user.name + "|" + user.vitals,
 		})
 	}
 
@@ -201,7 +201,7 @@ func establishUser(msg Message, conn net.Conn) (user User) {
 		if data.String() != "" {
 			data.WriteString("/")
 		}
-		data.WriteString(u.name + "|" + u.posRotStr)
+		data.WriteString(u.name + "|" + u.vitals)
 	}
 	if data.String() != "" {
 		user.Send(Message{

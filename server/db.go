@@ -18,11 +18,15 @@ const (
 
 // User represents a persistent user record.
 type User struct {
-	conn      net.Conn
-	name      string
-	blocked   bool
-	posRotStr string
-	exitCh    chan struct{}
+	name string
+	// vitals is a stringified composition of the core player data such as position, health, etc
+	vitals string
+	x, y   float64
+	rot    float64
+	health uint64
+
+	conn   net.Conn
+	exitCh chan struct{}
 }
 
 // Send marshals and writes a message to a user's client.
@@ -86,6 +90,10 @@ func (d *UserDB) Create(username string, conn net.Conn) (User, error) {
 	// create new user at the top of this func so that the conn can be consumed on error
 	newUser := User{
 		name:   username,
+		x:      float64(d.rand.Intn(8000)),
+		y:      float64(d.rand.Intn(8000)),
+		rot:    0.0,
+		health: 100,
 		conn:   conn,
 		exitCh: make(chan struct{}, 1),
 	}
@@ -119,7 +127,12 @@ func (d *UserDB) Create(username string, conn net.Conn) (User, error) {
 	}
 
 	// set initial random position
-	newUser.posRotStr = fmt.Sprintf("%f|%f|%f", float64(d.rand.Intn(8000)), float64(d.rand.Intn(8000)), 0.0)
+	newUser.vitals = ConcatVitals(
+		newUser.x,
+		newUser.y,
+		newUser.rot,
+		newUser.health,
+	)
 
 	// insert new user into DB
 	d.Lock()

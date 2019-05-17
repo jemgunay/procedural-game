@@ -9,22 +9,41 @@ import (
 	"github.com/faiface/pixel/pixelgl"
 )
 
-type MainPlayer struct {
-	*Player
-	*Armoury
-}
-
 // Player represents a drawable client player.
 type Player struct {
 	name            string
 	pos             pixel.Vec
 	prevPos         pixel.Vec
-	baseSpeed       float64
 	orientation     float64
 	prevOrientation float64
-	sprite          *pixel.Sprite
+	health          uint64
+
+	baseSpeed float64
+	sprite    *pixel.Sprite
 
 	sync.RWMutex
+}
+
+type MainPlayer struct {
+	*Player
+	*Armoury
+}
+
+func UpgradeToMain(p *Player) MainPlayer {
+	return MainPlayer{
+		Player: p,
+		Armoury: &Armoury{
+			AmmoStore: map[Ammo]int{
+				PistolAmmo:  14,
+				RifleAmmo:   60,
+				ShotgunAmmo: 20,
+			},
+			Weapons: []ProjectileWeapon{
+				weapons["deagle"],
+			},
+			CurrentWeapon: 0,
+		},
+	}
 }
 
 // Draw draws a player onto a window.
@@ -62,20 +81,27 @@ func (p *Player) Right(dt float64) {
 	p.Unlock()
 }
 
+// Health retrieves the player health.
+func (p *Player) Health() uint64 {
+	p.RLock()
+	health := p.health
+	p.RUnlock()
+	return health
+}
+
+// SetHealth sets the player's health.
+func (p *Player) SetHealth(health uint64) {
+	p.Lock()
+	p.health = health
+	p.Unlock()
+}
+
 // Pos retrieves the player position.
 func (p *Player) Pos() pixel.Vec {
 	p.RLock()
 	pos := p.pos
 	p.RUnlock()
 	return pos
-}
-
-// Speed retrieves the player baseSpeed.
-func (p *Player) Speed() float64 {
-	p.Lock()
-	speed := p.baseSpeed
-	p.Unlock()
-	return speed
 }
 
 // SetPos moves the player to the specified coordinates.
@@ -102,6 +128,14 @@ func (p *Player) SetOrientation(target float64) {
 	p.Unlock()
 }
 
+// Speed retrieves the player baseSpeed.
+func (p *Player) Speed() float64 {
+	p.RLock()
+	speed := p.baseSpeed
+	p.RUnlock()
+	return speed
+}
+
 // PointTo rotates the player to face the specified target.
 func (p *Player) PointTo(target pixel.Vec) {
 	p.Lock()
@@ -116,4 +150,16 @@ func (p *Player) HasMoved() bool {
 	moved := p.pos != p.prevPos && p.orientation != p.prevOrientation
 	p.RUnlock()
 	return moved
+}
+
+func (w *ProjectileWeapon) Attack() {
+
+	w.state = Firing
+	if w.automatic {
+
+	}
+}
+
+func (w *ProjectileWeapon) Reload() {
+	w.state = Reloading
 }

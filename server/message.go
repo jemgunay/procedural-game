@@ -30,57 +30,57 @@ func (m Message) Unpack() (map[string]interface{}, error) {
 	components := strings.Split(m.Value, "|")
 
 	switch m.Type {
-	case "pos":
+	case "vitals":
 		// validation
-		if len(components) != 4 {
-			return nil, errors.New("incorrect pos component count")
-		}
-		x, err := strconv.ParseFloat(components[1], 64)
-		if err != nil {
-			return nil, errors.New("failed to parse X")
-		}
-		y, err := strconv.ParseFloat(components[2], 64)
-		if err != nil {
-			return nil, errors.New("failed to parse Y")
-		}
-		rot, err := strconv.ParseFloat(components[3], 64)
-		if err != nil {
-			return nil, errors.New("failed to parse rot")
-		}
-		// unpacked response
-		return map[string]interface{}{
-			"name": components[0],
-			"pos":  pixel.V(x, y),
-			"rot":  rot,
-		}, nil
+		return UnpackVitals(components)
 
 	case "register_success", "connect_success":
 		// validation
-		if len(components) != 5 {
+		if len(components) != 6 {
 			return nil, errors.New("incorrect register_success component count")
 		}
 
-		x, err := strconv.ParseFloat(components[2], 64)
+		unpacked, err := UnpackVitals(components[1:])
 		if err != nil {
-			return nil, errors.New("failed to parse X")
-		}
-		y, err := strconv.ParseFloat(components[3], 64)
-		if err != nil {
-			return nil, errors.New("failed to parse Y")
-		}
-		rot, err := strconv.ParseFloat(components[4], 64)
-		if err != nil {
-			return nil, errors.New("failed to parse rot")
+			return unpacked, err
 		}
 
-		// unpacked response
-		return map[string]interface{}{
-			"username": components[0],
-			"seed":     components[1],
-			"pos":      pixel.V(x, y),
-			"rot":      rot,
-		}, nil
+		unpacked["seed"] = components[0]
+		return unpacked, nil
 	}
 
 	return nil, fmt.Errorf("unsupported message type supplied: %s", m.Type)
+}
+
+func UnpackVitals(components []string) (map[string]interface{}, error) {
+	if len(components) != 5 {
+		return nil, errors.New("incorrect vitals component count")
+	}
+	x, err := strconv.ParseFloat(components[1], 64)
+	if err != nil {
+		return nil, errors.New("failed to parse X")
+	}
+	y, err := strconv.ParseFloat(components[2], 64)
+	if err != nil {
+		return nil, errors.New("failed to parse Y")
+	}
+	rot, err := strconv.ParseFloat(components[3], 64)
+	if err != nil {
+		return nil, errors.New("failed to parse rot")
+	}
+	health, err := strconv.ParseUint(components[4], 10, 64)
+	if err != nil {
+		return nil, errors.New("failed to parse health")
+	}
+	// unpacked response
+	return map[string]interface{}{
+		"name":   components[0],
+		"pos":    pixel.V(x, y),
+		"rot":    rot,
+		"health": health,
+	}, nil
+}
+
+func ConcatVitals(x, y, rot float64, health uint64) string {
+	return fmt.Sprintf("%f|%f|%f|%d", x, y, rot, health)
 }
