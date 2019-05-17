@@ -2,6 +2,7 @@
 package player
 
 import (
+	"fmt"
 	"math"
 	"sync"
 
@@ -26,23 +27,49 @@ type Player struct {
 
 type MainPlayer struct {
 	*Player
-	*Armoury
+	AmmoStore     map[Ammo]int
+	Weapons       []*ProjectileWeapon
+	CurrentWeapon *ProjectileWeapon
 }
 
 func UpgradeToMain(p *Player) MainPlayer {
-	return MainPlayer{
+	m := MainPlayer{
 		Player: p,
-		Armoury: &Armoury{
-			AmmoStore: map[Ammo]int{
-				PistolAmmo:  14,
-				RifleAmmo:   60,
-				ShotgunAmmo: 20,
-			},
-			Weapons: []ProjectileWeapon{
-				weapons["deagle"],
-			},
-			CurrentWeapon: 0,
+		AmmoStore: map[Ammo]int{
+			PistolAmmo:  14,
+			RifleAmmo:   60,
+			ShotgunAmmo: 20,
 		},
+	}
+
+	if err := m.AddWeapon(Deagle); err != nil {
+		fmt.Printf("failed to add new weapon: %s\n", err)
+	} else {
+		m.CurrentWeapon = m.Weapons[0]
+	}
+	return m
+}
+
+func (p *MainPlayer) Update(dt float64) {
+	//p.RLock()
+	//p.RUnlock()
+	if p.CurrentWeapon != nil {
+		p.CurrentWeapon.Update(dt)
+	}
+
+}
+
+func (p *MainPlayer) UpdateWeaponState(state WeaponState) {
+	// TODO: if not in water etc
+	if p.CurrentWeapon == nil {
+		return
+	}
+
+	switch state {
+	case Attacking:
+		p.CurrentWeapon.Attack(p.pos)
+	case Reloading:
+		p.CurrentWeapon.Reload()
 	}
 }
 
@@ -150,16 +177,4 @@ func (p *Player) HasMoved() bool {
 	moved := p.pos != p.prevPos && p.orientation != p.prevOrientation
 	p.RUnlock()
 	return moved
-}
-
-func (w *ProjectileWeapon) Attack() {
-
-	w.state = Firing
-	if w.automatic {
-
-	}
-}
-
-func (w *ProjectileWeapon) Reload() {
-	w.state = Reloading
 }

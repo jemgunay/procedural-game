@@ -4,17 +4,8 @@ import (
 	"time"
 
 	"github.com/faiface/pixel"
+	"github.com/pkg/errors"
 )
-
-type Armoury struct {
-	AmmoStore     map[Ammo]int
-	Weapons       []ProjectileWeapon
-	CurrentWeapon int
-}
-
-func (a *Armoury) Update(dt float64) {
-
-}
 
 type Ammo string
 
@@ -24,19 +15,36 @@ const (
 	ShotgunAmmo Ammo = "shotgun"
 )
 
-var weapons = map[string]ProjectileWeapon{
-	"deagle": {
-		ammoType:            PistolAmmo,
-		automatic:           false,
-		maxAmmoCapacity:     7,
-		currentAmmoCapacity: 7,
-		fireDelay:           time.Millisecond * 500,
-		reloadDelay:         time.Second * 3,
+func (p *MainPlayer) AddWeapon(name WeaponName) error {
+	w, ok := weapons[name]
+	if !ok {
+		return errors.New("weapon \"" + string(name) + "\" does not exist")
+	}
+	w.currentAmmoCapacity = w.maxAmmoCapacity
+	w.state = Ready
 
-		barrelLength:   10,
-		maxSpreadAngle: 3,
+	p.Lock()
+	p.Weapons = append(p.Weapons, &w)
+	p.Unlock()
+	return nil
+}
 
-		state: Ready,
+type WeaponName string
+
+const (
+	Deagle WeaponName = "deagle"
+)
+
+var weapons = map[WeaponName]ProjectileWeapon{
+	Deagle: {
+		ammoType:        PistolAmmo,
+		automatic:       false,
+		maxAmmoCapacity: 7,
+		barrelLength:    10,
+		maxSpreadAngle:  3,
+
+		fireDelay:   time.Millisecond * 500,
+		reloadDelay: time.Second * 3,
 	},
 }
 
@@ -44,7 +52,7 @@ type WeaponState string
 
 const (
 	Ready     WeaponState = "ready"
-	Firing    WeaponState = "firing"
+	Attacking WeaponState = "attacking"
 	Reloading WeaponState = "reloading"
 )
 
@@ -60,6 +68,42 @@ type ProjectileWeapon struct {
 	maxSpreadAngle float32
 
 	state WeaponState
+	stateChangeTime     time.Time
+}
+
+func (w *ProjectileWeapon) Attack(playerPos pixel.Vec) {
+	if w.state != Ready {
+		return
+	}
+	w.state = Attacking
+	w.stateChangeTime = time.Now()
+	if w.automatic {
+
+	}
+}
+
+func (w *ProjectileWeapon) Reload() {
+	if w.state != Ready {
+		return
+	}
+	w.state = Reloading
+	w.stateChangeTime = time.Now()
+}
+
+func (w *ProjectileWeapon) Update(dt float64) {
+	switch w.state {
+	case Attacking:
+		if time.Now().Sub(w.stateChangeTime) >= w.fireDelay {
+			w.state = Ready
+		}
+		return
+	case Reloading:
+		if time.Now().Sub(w.stateChangeTime) >= w.reloadDelay {
+			w.state = Ready
+		}
+		return
+	}
+
 }
 
 // Projectile represents a single projectile.

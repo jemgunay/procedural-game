@@ -20,6 +20,7 @@ type Message struct {
 func (m Message) Pack() []byte {
 	buf := bytes.Buffer{}
 	buf.WriteString(`{"t":"` + m.Type + `","v":"` + m.Value + `"}`)
+	// terminate with newline so clients can determine end of message
 	buf.WriteByte('\n')
 	return buf.Bytes()
 }

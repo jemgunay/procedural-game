@@ -18,10 +18,11 @@ import (
 
 // Game is the main interactive game functionality layer.
 type Game struct {
-	gameType   GameType
-	tileGrid   *world.TileGrid
-	players    *player.Store
-	mainPlayer player.MainPlayer
+	gameType    GameType
+	tileGrid    *world.TileGrid
+	players     *player.Store
+	mainPlayer  player.MainPlayer
+	projectiles []*player.Projectile
 
 	camPos        pixel.Vec
 	camMatrix     pixel.Matrix
@@ -321,18 +322,18 @@ func (g *Game) Update(dt float64) {
 		})
 	}
 
-	g.mainPlayer.Armoury.Update(dt)
-
 	switch {
 	// determine whether to reload weapon
 	case win.Pressed(pixelgl.KeyR):
-
-	// determine whether to fire weapon
+		g.mainPlayer.UpdateWeaponState(player.Reloading)
+	// determine whether to trigger a player attack action
 	case win.Pressed(pixelgl.MouseButton1):
-
+		g.mainPlayer.UpdateWeaponState(player.Attacking)
 	}
 
-	// smooth camera tracking of player
+	g.mainPlayer.Update(dt)
+
+	// smooth player camera tracking
 	lerp := g.mainPlayer.Speed() * 0.01 * dt
 	camDelta := g.mainPlayer.Pos().Sub(g.camPos).Scaled(lerp)
 	g.camPos = g.camPos.Add(camDelta)
