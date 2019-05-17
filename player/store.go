@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
@@ -97,4 +98,25 @@ func (s *Store) String() string {
 	}
 	s.RUnlock()
 	return b.String()
+}
+
+type ProjectileStore struct {
+	projectiles []*Projectile
+}
+
+func (s *ProjectileStore) Update(dt float64) {
+	var aliveProjectiles []*Projectile
+	for _, p := range s.projectiles {
+		// destroy projectiles with expired TTLs
+		if !time.Now().After(p.spawnTime.Add(p.ttl)) {
+			aliveProjectiles = append(aliveProjectiles, p)
+		}
+	}
+	s.projectiles = aliveProjectiles
+}
+
+func (s *ProjectileStore) Draw(win *pixelgl.Window) {
+	for _, p := range s.projectiles {
+
+	}
 }

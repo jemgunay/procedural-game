@@ -22,7 +22,7 @@ type Game struct {
 	tileGrid    *world.TileGrid
 	players     *player.Store
 	mainPlayer  player.MainPlayer
-	projectiles []*player.Projectile
+	projectiles *player.ProjectileStore
 
 	camPos        pixel.Vec
 	camMatrix     pixel.Matrix
@@ -122,14 +122,15 @@ func NewGame(gameType GameType, addr string, playerName string) (game *Game, err
 
 	// create new game instance
 	game = &Game{
-		gameType:   gameType,
-		seed:       seed,
-		tileGrid:   tileGrid,
-		players:    playerStore,
-		mainPlayer: mainPlayer,
-		camPos:     mainPlayer.Pos(),
-		camScale:   0.5,
-		exitCh:     make(chan struct{}, 1),
+		gameType:    gameType,
+		seed:        seed,
+		tileGrid:    tileGrid,
+		players:     playerStore,
+		mainPlayer:  mainPlayer,
+		projectiles: &player.ProjectileStore{},
+		camPos:      mainPlayer.Pos(),
+		camScale:    0.5,
+		exitCh:      make(chan struct{}, 1),
 	}
 
 	// receive and process incoming requests from the server
@@ -258,6 +259,9 @@ func splitPosReq(val string) (name string, pos pixel.Vec, rot float64, health ui
 
 // Update updates the game layer logic.
 func (g *Game) Update(dt float64) {
+	g.projectiles.Update(dt)
+
+	// things that shouldn't update when the overview menu is up should occur here
 	if g.locked {
 		// check for response from overlay menu layer
 		select {
@@ -350,6 +354,8 @@ func (g *Game) Draw() {
 	g.tileGrid.Draw(win)
 	// draw players
 	g.players.Draw(win)
+	// draw projectiles
+	g.projectiles.Draw(win)
 }
 
 // Disconnect triggers a client disconnect, followed by a server shutdown if a server is being hosted. The main menu is

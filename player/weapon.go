@@ -32,7 +32,8 @@ func (p *MainPlayer) AddWeapon(name WeaponName) error {
 type WeaponName string
 
 const (
-	Deagle WeaponName = "deagle"
+	Deagle WeaponName = "Deagle"
+	M4A1   WeaponName = "M4A1"
 )
 
 var weapons = map[WeaponName]ProjectileWeapon{
@@ -41,9 +42,19 @@ var weapons = map[WeaponName]ProjectileWeapon{
 		automatic:       false,
 		maxAmmoCapacity: 7,
 		barrelLength:    10,
-		maxSpreadAngle:  3,
+		maxSpreadAngle:  3.2,
 
 		fireDelay:   time.Millisecond * 500,
+		reloadDelay: time.Second * 2,
+	},
+	M4A1: {
+		ammoType:        RifleAmmo,
+		automatic:       true,
+		maxAmmoCapacity: 30,
+		barrelLength:    20,
+		maxSpreadAngle:  3,
+
+		fireDelay:   time.Millisecond * 150,
 		reloadDelay: time.Second * 3,
 	},
 }
@@ -67,8 +78,8 @@ type ProjectileWeapon struct {
 	barrelLength   float32
 	maxSpreadAngle float32
 
-	state WeaponState
-	stateChangeTime     time.Time
+	state           WeaponState
+	stateChangeTime time.Time
 }
 
 func (w *ProjectileWeapon) Attack(playerPos pixel.Vec) {
@@ -80,6 +91,8 @@ func (w *ProjectileWeapon) Attack(playerPos pixel.Vec) {
 	if w.automatic {
 
 	}
+
+
 }
 
 func (w *ProjectileWeapon) Reload() {
@@ -108,7 +121,9 @@ func (w *ProjectileWeapon) Update(dt float64) {
 
 // Projectile represents a single projectile.
 type Projectile struct {
-	pos      pixel.Vec
-	velocity pixel.Vec
-	speed    float32
+	pos       pixel.Vec
+	velocity  pixel.Vec
+	speed     float32
+	spawnTime time.Time
+	ttl       time.Duration
 }
