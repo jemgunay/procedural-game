@@ -123,7 +123,7 @@ func (w *ProjectileWeapon) Update(dt float64) {
 type Projectile struct {
 	pos       pixel.Vec
 	velocity  pixel.Vec
-	speed     float32
 	spawnTime time.Time
 	ttl       time.Duration
 }
+

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/faiface/pixel"
+	"github.com/faiface/pixel/imdraw"
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/jemgunay/procedural-game/file"
 )
@@ -101,14 +102,25 @@ func (s *Store) String() string {
 }
 
 type ProjectileStore struct {
-	projectiles []*Projectile
+	projectiles []Projectile
+}
+
+func (s *ProjectileStore) Add(pos pixel.Vec, weapon ProjectileWeapon) {
+	p := Projectile{
+		pos:       pos,
+		velocity:  pos.Unit(), // multiply by speed
+		spawnTime: time.Now(),
+		ttl:       time.Second * 5,
+	}
+	s.projectiles = append(s.projectiles, p)
 }
 
 func (s *ProjectileStore) Update(dt float64) {
-	var aliveProjectiles []*Projectile
+	var aliveProjectiles []Projectile
 	for _, p := range s.projectiles {
-		// destroy projectiles with expired TTLs
+		// only retain projectiles with unexpired TTLs
 		if !time.Now().After(p.spawnTime.Add(p.ttl)) {
+			p.pos = p.pos.Add(p.velocity)
 			aliveProjectiles = append(aliveProjectiles, p)
 		}
 	}
@@ -117,6 +129,10 @@ func (s *ProjectileStore) Update(dt float64) {
 
 func (s *ProjectileStore) Draw(win *pixelgl.Window) {
 	for _, p := range s.projectiles {
-
+		circle := imdraw.New(nil)
+		circle.Color = pixel.RGB(1, 1, 1)
+		circle.Push(p.pos)
+		circle.Circle(20, 0)
+		circle.Draw(win)
 	}
 }

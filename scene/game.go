@@ -22,7 +22,6 @@ type Game struct {
 	tileGrid    *world.TileGrid
 	players     *player.Store
 	mainPlayer  player.MainPlayer
-	projectiles *player.ProjectileStore
 
 	camPos        pixel.Vec
 	camMatrix     pixel.Matrix
@@ -127,7 +126,6 @@ func NewGame(gameType GameType, addr string, playerName string) (game *Game, err
 		tileGrid:    tileGrid,
 		players:     playerStore,
 		mainPlayer:  mainPlayer,
-		projectiles: &player.ProjectileStore{},
 		camPos:      mainPlayer.Pos(),
 		camScale:    0.5,
 		exitCh:      make(chan struct{}, 1),
