@@ -21,7 +21,7 @@ type Game struct {
 	gameType    GameType
 	tileGrid    *world.TileGrid
 	players     *player.Store
-	mainPlayer  player.MainPlayer
+	mainPlayer  *player.Player
 
 	camPos        pixel.Vec
 	camMatrix     pixel.Matrix
@@ -110,14 +110,15 @@ func NewGame(gameType GameType, addr string, playerName string) (game *Game, err
 
 	// create player store & new main player
 	playerStore := player.NewStore()
-	newPlayer, err := playerStore.Add(playerName)
+	mainPlayer, err := playerStore.Add(playerName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create player: %s", err)
 	}
-	mainPlayer := player.UpgradeToMain(newPlayer)
 	mainPlayer.SetPos(pos)
 	mainPlayer.SetOrientation(rot)
 	mainPlayer.SetHealth(health)
+
+	player.InitArmoury()
 
 	// create new game instance
 	game = &Game{
@@ -257,7 +258,7 @@ func splitPosReq(val string) (name string, pos pixel.Vec, rot float64, health ui
 
 // Update updates the game layer logic.
 func (g *Game) Update(dt float64) {
-	g.projectiles.Update(dt)
+	g.mainPlayer.Update(dt)
 
 	// things that shouldn't update when the overview menu is up should occur here
 	if g.locked {
@@ -325,15 +326,18 @@ func (g *Game) Update(dt float64) {
 	}
 
 	switch {
+	// determine whether to trigger a player attack action
+	case win.JustPressed(pixelgl.MouseButton1):
+		player.Attack()
+
+	case win.JustReleased(pixelgl.MouseButton1):
+		player.StopAttack()
+
 	// determine whether to reload weapon
 	case win.Pressed(pixelgl.KeyR):
-		g.mainPlayer.UpdateWeaponState(player.Reloading)
-	// determine whether to trigger a player attack action
-	case win.Pressed(pixelgl.MouseButton1):
-		g.mainPlayer.UpdateWeaponState(player.Attacking)
-	}
+		player.Reload()
 
-	g.mainPlayer.Update(dt)
+	}
 
 	// smooth player camera tracking
 	lerp := g.mainPlayer.Speed() * 0.01 * dt
@@ -353,7 +357,7 @@ func (g *Game) Draw() {
 	// draw players
 	g.players.Draw(win)
 	// draw projectiles
-	g.projectiles.Draw(win)
+	player.DrawProjectiles(win)
 }
 
 // Disconnect triggers a client disconnect, followed by a server shutdown if a server is being hosted. The main menu is

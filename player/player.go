@@ -25,51 +25,26 @@ type Player struct {
 	sync.RWMutex
 }
 
-type MainPlayer struct {
-	*Player
-	AmmoStore     map[Ammo]int
-	Weapons       []*ProjectileWeapon
-	CurrentWeapon *ProjectileWeapon
-}
+var (
+	AmmoStore    map[Ammo]int
+	Armoury      []*ProjectileWeapon
+	ActiveWeapon *ProjectileWeapon
+	Projectiles  []Projectile
+)
 
-func UpgradeToMain(p *Player) MainPlayer {
-	m := MainPlayer{
-		Player: p,
-		AmmoStore: map[Ammo]int{
-			PistolAmmo:  14,
-			RifleAmmo:   60,
-			ShotgunAmmo: 20,
-		},
+func InitArmoury() {
+	// give initial ammo stock
+	AmmoStore = map[Ammo]int{
+		PistolAmmo:  14,
+		RifleAmmo:   60,
+		ShotgunAmmo: 20,
 	}
 
-	if err := m.AddWeapon(Deagle); err != nil {
+	// give deagle
+	if err := CollectWeapon(Deagle); err != nil {
 		fmt.Printf("failed to add new weapon: %s\n", err)
 	} else {
-		m.CurrentWeapon = m.Weapons[0]
-	}
-	return m
-}
-
-func (p *MainPlayer) Update(dt float64) {
-	//p.RLock()
-	//p.RUnlock()
-	if p.CurrentWeapon != nil {
-		p.CurrentWeapon.Update(dt)
-	}
-
-}
-
-func (p *MainPlayer) UpdateWeaponState(state WeaponState) {
-	// TODO: if not in water etc
-	if p.CurrentWeapon == nil {
-		return
-	}
-
-	switch state {
-	case Attacking:
-		p.CurrentWeapon.Attack(p.pos)
-	case Reloading:
-		p.CurrentWeapon.Reload()
+		ActiveWeapon = Armoury[0]
 	}
 }
 
@@ -132,10 +107,10 @@ func (p *Player) Pos() pixel.Vec {
 }
 
 // SetPos moves the player to the specified coordinates.
-func (p *Player) SetPos(target pixel.Vec) {
+func (p *Player) SetPos(pos pixel.Vec) {
 	p.Lock()
 	p.prevPos = p.pos
-	p.pos = target
+	p.pos = pos
 	p.Unlock()
 }
 
@@ -148,10 +123,10 @@ func (p *Player) Orientation() float64 {
 }
 
 // SetOrientation sets the player's orientation.
-func (p *Player) SetOrientation(target float64) {
+func (p *Player) SetOrientation(orientation float64) {
 	p.Lock()
 	p.prevOrientation = p.orientation
-	p.orientation = target
+	p.orientation = orientation
 	p.Unlock()
 }
 

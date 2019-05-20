@@ -1,9 +1,14 @@
 package player
 
 import (
+	"fmt"
+	"math"
+	"sync"
 	"time"
 
 	"github.com/faiface/pixel"
+	"github.com/faiface/pixel/imdraw"
+	"github.com/faiface/pixel/pixelgl"
 	"github.com/pkg/errors"
 )
 
@@ -15,7 +20,7 @@ const (
 	ShotgunAmmo Ammo = "shotgun"
 )
 
-func (p *MainPlayer) AddWeapon(name WeaponName) error {
+func CollectWeapon(name WeaponName) error {
 	w, ok := weapons[name]
 	if !ok {
 		return errors.New("weapon \"" + string(name) + "\" does not exist")
@@ -23,9 +28,7 @@ func (p *MainPlayer) AddWeapon(name WeaponName) error {
 	w.currentAmmoCapacity = w.maxAmmoCapacity
 	w.state = Ready
 
-	p.Lock()
-	p.Weapons = append(p.Weapons, &w)
-	p.Unlock()
+	Armoury = append(Armoury, &w)
 	return nil
 }
 
@@ -41,18 +44,18 @@ var weapons = map[WeaponName]ProjectileWeapon{
 		ammoType:        PistolAmmo,
 		automatic:       false,
 		maxAmmoCapacity: 7,
-		barrelLength:    10,
+		barrelLength:    40,
 		maxSpreadAngle:  3.2,
 
 		fireDelay:   time.Millisecond * 500,
-		reloadDelay: time.Second * 2,
+		reloadDelay: time.Second * 3,
 	},
 	M4A1: {
 		ammoType:        RifleAmmo,
 		automatic:       true,
 		maxAmmoCapacity: 30,
-		barrelLength:    20,
-		maxSpreadAngle:  3,
+		barrelLength:    70,
+		maxSpreadAngle:  4,
 
 		fireDelay:   time.Millisecond * 150,
 		reloadDelay: time.Second * 3,
@@ -67,6 +70,8 @@ const (
 	Reloading WeaponState = "reloading"
 )
 
+var isWeaponTriggered bool
+
 type ProjectileWeapon struct {
 	ammoType            Ammo
 	automatic           bool
@@ -80,43 +85,7 @@ type ProjectileWeapon struct {
 
 	state           WeaponState
 	stateChangeTime time.Time
-}
-
-func (w *ProjectileWeapon) Attack(playerPos pixel.Vec) {
-	if w.state != Ready {
-		return
-	}
-	w.state = Attacking
-	w.stateChangeTime = time.Now()
-	if w.automatic {
-
-	}
-
-
-}
-
-func (w *ProjectileWeapon) Reload() {
-	if w.state != Ready {
-		return
-	}
-	w.state = Reloading
-	w.stateChangeTime = time.Now()
-}
-
-func (w *ProjectileWeapon) Update(dt float64) {
-	switch w.state {
-	case Attacking:
-		if time.Now().Sub(w.stateChangeTime) >= w.fireDelay {
-			w.state = Ready
-		}
-		return
-	case Reloading:
-		if time.Now().Sub(w.stateChangeTime) >= w.reloadDelay {
-			w.state = Ready
-		}
-		return
-	}
-
+	sync.RWMutex
 }
 
 // Projectile represents a single projectile.
@@ -127,3 +96,121 @@ type Projectile struct {
 	ttl       time.Duration
 }
 
+func Reload() {
+	if ActiveWeapon == nil {
+		return
+	}
+	if ActiveWeapon.state != Ready {
+		return
+	}
+	if ActiveWeapon.currentAmmoCapacity == ActiveWeapon.maxAmmoCapacity {
+		return
+	}
+	if AmmoStore[ActiveWeapon.ammoType] <= 0 {
+		fmt.Println("not enough ammo to reload")
+		return
+	}
+
+	ActiveWeapon.state = Reloading
+	ActiveWeapon.stateChangeTime = time.Now()
+}
+
+func Attack() {
+	isWeaponTriggered = true
+}
+
+func StopAttack() {
+	isWeaponTriggered = false
+}
+
+func (p *Player) Shoot() {
+	if ActiveWeapon == nil {
+		return
+	}
+	if ActiveWeapon.state != Ready {
+		fmt.Printf("weapon not ready to shoot: %s", ActiveWeapon.stateChangeTime)
+		return
+	}
+	if ActiveWeapon.currentAmmoCapacity <= 0 {
+		fmt.Println("out of ammo")
+		return
+	}
+
+	bulletPos := pixel.V(
+		p.Pos().X+float64(ActiveWeapon.barrelLength)*math.Cos(p.Orientation()),
+		p.Pos().Y+float64(ActiveWeapon.barrelLength)*math.Sin(p.Orientation()),
+	)
+
+	projectile := Projectile{
+		pos:       bulletPos,
+		velocity:  pixel.V(float64(ActiveWeapon.barrelLength)*math.Cos(p.Orientation()), float64(ActiveWeapon.barrelLength)*math.Sin(p.Orientation())),
+		spawnTime: time.Now(),
+		ttl:       time.Second * 5,
+	}
+	Projectiles = append(Projectiles, projectile)
+
+	// consume ammo round
+	ActiveWeapon.currentAmmoCapacity--
+	fmt.Printf("shot: ammo in weapon: %d/%d, ammo in armoury: %d\n", ActiveWeapon.currentAmmoCapacity, ActiveWeapon.maxAmmoCapacity, AmmoStore[ActiveWeapon.ammoType])
+	ActiveWeapon.state = Attacking
+	ActiveWeapon.stateChangeTime = time.Now()
+
+	if !ActiveWeapon.automatic {
+		isWeaponTriggered = false
+	}
+}
+
+func (p *Player) Update(dt float64) {
+	if ActiveWeapon != nil {
+		ActiveWeapon.Lock()
+
+		switch ActiveWeapon.state {
+		case Attacking:
+			if ActiveWeapon.stateChangeTime.Add(ActiveWeapon.fireDelay).After(time.Now()) {
+				ActiveWeapon.state = Ready
+			}
+
+		case Reloading:
+			if ActiveWeapon.stateChangeTime.Add(ActiveWeapon.reloadDelay).After(time.Now()) {
+				requiredAmmo := ActiveWeapon.maxAmmoCapacity - ActiveWeapon.currentAmmoCapacity
+				availableAmmo := AmmoStore[ActiveWeapon.ammoType]
+
+				if availableAmmo >= int(requiredAmmo) {
+					AmmoStore[ActiveWeapon.ammoType] = availableAmmo - int(requiredAmmo)
+					ActiveWeapon.currentAmmoCapacity += requiredAmmo
+				} else {
+					AmmoStore[ActiveWeapon.ammoType] = 0
+					ActiveWeapon.currentAmmoCapacity += uint(availableAmmo)
+				}
+				ActiveWeapon.state = Ready
+				fmt.Printf("reloaded: ammo in weapon: %d/%d, ammo in armoury: %d\n", ActiveWeapon.currentAmmoCapacity, ActiveWeapon.maxAmmoCapacity, AmmoStore[ActiveWeapon.ammoType])
+			}
+		case Ready:
+			if isWeaponTriggered {
+				p.Shoot()
+			}
+		}
+		ActiveWeapon.Unlock()
+	}
+
+	var aliveProjectiles []Projectile
+	for _, p := range Projectiles {
+		// only retain projectiles with unexpired TTLs
+		if !time.Now().After(p.spawnTime.Add(p.ttl)) {
+			p.pos = p.pos.Add(p.velocity)
+			aliveProjectiles = append(aliveProjectiles, p)
+		}
+	}
+	Projectiles = aliveProjectiles
+}
+
+func DrawProjectiles(win *pixelgl.Window) {
+
+	for _, p := range Projectiles {
+		circle := imdraw.New(nil)
+		circle.Color = pixel.RGB(0.2, 0.2, 0.2)
+		circle.Push(p.pos)
+		circle.Circle(3, 0)
+		circle.Draw(win)
+	}
+}

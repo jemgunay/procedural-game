@@ -65,7 +65,7 @@ func (i ImageFile) String() string {
 
 // Image file name constants.
 const (
-	Player   ImageFile = "player.png"
+	Player   ImageFile = "player_pistol.png"
 	Grass    ImageFile = "grass.png"
 	Sand     ImageFile = "sand.png"
 	Water    ImageFile = "water.png"
