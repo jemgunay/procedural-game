@@ -40,12 +40,16 @@ func InitArmoury() {
 		ShotgunAmmo: 20,
 	}
 
-	// give deagle
+	// give pistol
 	if err := CollectWeapon(Deagle); err != nil {
 		fmt.Printf("failed to add new weapon: %s\n", err)
-	} else {
-		ActiveWeapon = Armoury[0]
 	}
+
+	// give rifle
+	if err := CollectWeapon(M4A1); err != nil {
+		fmt.Printf("failed to add new weapon: %s\n", err)
+	}
+
 }
 
 // Draw draws a player onto a window.

@@ -307,6 +307,26 @@ func (g *Game) Update(dt float64) {
 		g.locked = true
 		g.overlayResult = Push(NewOverlayMenu(g.gameType))
 	}
+	switch {
+	case win.JustPressed(pixelgl.Key1):
+		player.SwitchWeapon(1)
+	case win.JustPressed(pixelgl.Key2):
+		player.SwitchWeapon(2)
+	case win.JustPressed(pixelgl.Key3):
+		player.SwitchWeapon(3)
+	case win.JustPressed(pixelgl.Key4):
+		player.SwitchWeapon(4)
+	case win.JustPressed(pixelgl.Key5):
+		player.SwitchWeapon(5)
+	case win.JustPressed(pixelgl.Key6):
+		player.SwitchWeapon(6)
+	case win.JustPressed(pixelgl.Key7):
+		player.SwitchWeapon(7)
+	case win.JustPressed(pixelgl.Key8):
+		player.SwitchWeapon(8)
+	case win.JustPressed(pixelgl.Key9):
+		player.SwitchWeapon(9)
+	}
 
 	// handle mouse movement
 	if win.MousePosition() != g.prevMousePos {

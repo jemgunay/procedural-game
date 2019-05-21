@@ -29,7 +29,24 @@ func CollectWeapon(name WeaponName) error {
 	w.state = Ready
 
 	Armoury = append(Armoury, &w)
+	SwitchWeapon(len(Armoury))
 	return nil
+}
+
+func SwitchWeapon(inventorySlot int) {
+	if len(weapons) < inventorySlot {
+		return
+	}
+	if ActiveWeapon != nil {
+		if ActiveWeapon.state == Attacking {
+			return
+		}
+		// cancel any reloads
+		if ActiveWeapon.state == Reloading {
+			ActiveWeapon.state = Ready
+		}
+	}
+	ActiveWeapon = Armoury[inventorySlot-1]
 }
 
 type WeaponName string
@@ -205,7 +222,6 @@ func (p *Player) Update(dt float64) {
 }
 
 func DrawProjectiles(win *pixelgl.Window) {
-
 	for _, p := range Projectiles {
 		circle := imdraw.New(nil)
 		circle.Color = pixel.RGB(0.2, 0.2, 0.2)
