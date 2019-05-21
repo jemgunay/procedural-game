@@ -58,12 +58,12 @@ func Start() {
 
 	// limit update cycles to 120 FPS
 	frameRateLimiter := time.Tick(time.Second / 120)
-	prevTimestamp := time.Now()
+	prevTimestamp := time.Now().UTC()
 	// main game loop
 	for !win.Closed() {
 
 		dt := time.Since(prevTimestamp).Seconds()
-		prevTimestamp = time.Now()
+		prevTimestamp = time.Now().UTC()
 
 		for _, layer := range layerStack {
 			layer.Update(dt)

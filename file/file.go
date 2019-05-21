@@ -145,6 +145,6 @@ func NewWavyFragShader(waveSpeed uint) (*WavyFragShader, error) {
 	return &WavyFragShader{
 		glsl:      string(f),
 		uSpeed:    float32(waveSpeed),
-		startTime: time.Now(),
+		startTime: time.Now().UTC(),
 	}, nil
 }

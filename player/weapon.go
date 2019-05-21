@@ -129,7 +129,7 @@ func Reload() {
 	}
 
 	ActiveWeapon.state = Reloading
-	ActiveWeapon.stateChangeTime = time.Now()
+	ActiveWeapon.stateChangeTime = time.Now().UTC()
 }
 
 func Attack() {
@@ -161,7 +161,7 @@ func (p *Player) Shoot() {
 	projectile := Projectile{
 		pos:       bulletPos,
 		velocity:  pixel.V(float64(ActiveWeapon.barrelLength)*math.Cos(p.Orientation()), float64(ActiveWeapon.barrelLength)*math.Sin(p.Orientation())),
-		spawnTime: time.Now(),
+		spawnTime: time.Now().UTC(),
 		ttl:       time.Second * 5,
 	}
 	Projectiles = append(Projectiles, projectile)
@@ -170,7 +170,7 @@ func (p *Player) Shoot() {
 	ActiveWeapon.currentAmmoCapacity--
 	fmt.Printf("shot: ammo in weapon: %d/%d, ammo in armoury: %d\n", ActiveWeapon.currentAmmoCapacity, ActiveWeapon.maxAmmoCapacity, AmmoStore[ActiveWeapon.ammoType])
 	ActiveWeapon.state = Attacking
-	ActiveWeapon.stateChangeTime = time.Now()
+	ActiveWeapon.stateChangeTime = time.Now().UTC()
 
 	if !ActiveWeapon.automatic {
 		isWeaponTriggered = false
@@ -183,12 +183,12 @@ func (p *Player) Update(dt float64) {
 
 		switch ActiveWeapon.state {
 		case Attacking:
-			if ActiveWeapon.stateChangeTime.Add(ActiveWeapon.fireDelay).After(time.Now()) {
+			if ActiveWeapon.stateChangeTime.Add(ActiveWeapon.fireDelay).After(time.Now().UTC()) {
 				ActiveWeapon.state = Ready
 			}
 
 		case Reloading:
-			if ActiveWeapon.stateChangeTime.Add(ActiveWeapon.reloadDelay).After(time.Now()) {
+			if ActiveWeapon.stateChangeTime.Add(ActiveWeapon.reloadDelay).After(time.Now().UTC()) {
 				requiredAmmo := ActiveWeapon.maxAmmoCapacity - ActiveWeapon.currentAmmoCapacity
 				availableAmmo := AmmoStore[ActiveWeapon.ammoType]
 
@@ -213,7 +213,7 @@ func (p *Player) Update(dt float64) {
 	var aliveProjectiles []Projectile
 	for _, p := range Projectiles {
 		// only retain projectiles with unexpired TTLs
-		if !time.Now().After(p.spawnTime.Add(p.ttl)) {
+		if !time.Now().UTC().After(p.spawnTime.Add(p.ttl)) {
 			p.pos = p.pos.Add(p.velocity)
 			aliveProjectiles = append(aliveProjectiles, p)
 		}

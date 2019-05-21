@@ -25,7 +25,7 @@ func Start(addr, seed string) error {
 	stopChan = make(chan struct{}, 1)
 	userDB = UserDB{
 		users: make(map[string]User),
-		rand:  rand.New(rand.NewSource(int64(time.Now().Nanosecond()))),
+		rand:  rand.New(rand.NewSource(int64(time.Now().UTC().Nanosecond()))),
 	}
 
 	// bind TCP listener
