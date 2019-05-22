@@ -2,7 +2,6 @@
 package player
 
 import (
-	"fmt"
 	"math"
 	"sync"
 
@@ -23,33 +22,6 @@ type Player struct {
 	sprite    *pixel.Sprite
 
 	sync.RWMutex
-}
-
-var (
-	AmmoStore       map[Ammo]int
-	Armoury         []*ProjectileWeapon
-	ActiveWeapon    *ProjectileWeapon
-	Projectiles     []Projectile
-	ProjectileSpeed = 15.0
-)
-
-func InitArmoury() {
-	// give initial ammo stock
-	AmmoStore = map[Ammo]int{
-		PistolAmmo:  14,
-		RifleAmmo:   60,
-		ShotgunAmmo: 20,
-	}
-
-	// give pistol
-	if err := CollectWeapon(Deagle); err != nil {
-		fmt.Printf("failed to add new weapon: %s\n", err)
-	}
-
-	// give rifle
-	if err := CollectWeapon(M4A1); err != nil {
-		fmt.Printf("failed to add new weapon: %s\n", err)
-	}
 }
 
 // Draw draws a player onto a window.

@@ -53,6 +53,7 @@ func (m Message) Unpack() (map[string]interface{}, error) {
 	return nil, fmt.Errorf("unsupported message type supplied: %s", m.Type)
 }
 
+// UnpackVitals unpacks a message containing a player's vitals update.
 func UnpackVitals(components []string) (map[string]interface{}, error) {
 	if len(components) != 5 {
 		return nil, errors.New("incorrect vitals component count")
@@ -82,6 +83,7 @@ func UnpackVitals(components []string) (map[string]interface{}, error) {
 	}, nil
 }
 
+// ConcatVitals packs a player's vitals update into a message.
 func ConcatVitals(x, y, rot float64, health uint64) string {
 	return fmt.Sprintf("%f|%f|%f|%d", x, y, rot, health)
 }

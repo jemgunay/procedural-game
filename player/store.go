@@ -36,7 +36,7 @@ func (s *Store) Find(username string) (*Player, error) {
 	return p, nil
 }
 
-// Shoot takes a username, creates a new corresponding user and adds it to the player store.
+// Add takes a username, creates a new corresponding user and adds it to the player store.
 func (s *Store) Add(username string) (*Player, error) {
 	// ensure player does not already exist in store
 	s.RLock()

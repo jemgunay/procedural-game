@@ -2,7 +2,6 @@ package player
 
 import (
 	"fmt"
-	"math"
 	"sync"
 	"time"
 
@@ -12,14 +11,47 @@ import (
 	"github.com/pkg/errors"
 )
 
+var (
+	AmmoStore         map[Ammo]int
+	Armoury           []*ProjectileWeapon
+	ActiveWeapon      *ProjectileWeapon
+	Projectiles       []Projectile
+
+	projectileSpeed   = 20.0
+	isWeaponTriggered bool
+)
+
+// InitArmoury initialises the main player's armoury, setting the starting ammo and weapons.
+func InitArmoury() {
+	// give initial ammo stock
+	AmmoStore = map[Ammo]int{
+		PistolAmmo:  14,
+		RifleAmmo:   60,
+		ShotgunAmmo: 20,
+	}
+
+	// give pistol
+	if err := CollectWeapon(Deagle); err != nil {
+		fmt.Printf("failed to add new weapon: %s\n", err)
+	}
+
+	// give rifle
+	if err := CollectWeapon(M4A1); err != nil {
+		fmt.Printf("failed to add new weapon: %s\n", err)
+	}
+}
+
+// Ammo represents an ammunition type.
 type Ammo string
 
+// Ammunition type constants.
 const (
 	PistolAmmo  Ammo = "pistol"
 	RifleAmmo   Ammo = "rifle"
 	ShotgunAmmo Ammo = "shotgun"
 )
 
+// CollectWeapon adds the specified weapon to the player's weapon inventory.
 func CollectWeapon(name WeaponName) error {
 	w, ok := weapons[name]
 	if !ok {
@@ -33,6 +65,7 @@ func CollectWeapon(name WeaponName) error {
 	return nil
 }
 
+// SwitchWeapon switches the player's active weapon to one in their inventory.
 func SwitchWeapon(inventorySlot int) {
 	if len(weapons) < inventorySlot {
 		return
@@ -47,17 +80,22 @@ func SwitchWeapon(inventorySlot int) {
 		}
 	}
 	ActiveWeapon = Armoury[inventorySlot-1]
+	fmt.Printf("switched to %s\n", ActiveWeapon)
 }
 
+// WeaponName represents a weapon name.
 type WeaponName string
 
+// Weapon type constants.
 const (
 	Deagle WeaponName = "Deagle"
 	M4A1   WeaponName = "M4A1"
 )
 
+// weapons is the list of supported weapons
 var weapons = map[WeaponName]ProjectileWeapon{
 	Deagle: {
+		weaponName:      Deagle,
 		ammoType:        PistolAmmo,
 		automatic:       false,
 		maxAmmoCapacity: 7,
@@ -68,6 +106,7 @@ var weapons = map[WeaponName]ProjectileWeapon{
 		reloadDelay: time.Second * 3,
 	},
 	M4A1: {
+		weaponName:      M4A1,
 		ammoType:        RifleAmmo,
 		automatic:       true,
 		maxAmmoCapacity: 30,
@@ -79,17 +118,21 @@ var weapons = map[WeaponName]ProjectileWeapon{
 	},
 }
 
+// WeaponState represents the current state of a weapon.
 type WeaponState string
 
 const (
+	// Ready indicates that the weapon is ready to be fired or reloaded.
 	Ready     WeaponState = "ready"
+	// Attacking indicates that the weapon is attacking and cannot be reloaded.
 	Attacking WeaponState = "attacking"
+	// Reloading indicates that the weapon is reloading and cannot be fired.
 	Reloading WeaponState = "reloading"
 )
 
-var isWeaponTriggered bool
-
+// ProjectileWeapon is a weapon that produces projectiles.
 type ProjectileWeapon struct {
+	weaponName          WeaponName
 	ammoType            Ammo
 	automatic           bool
 	maxAmmoCapacity     uint
@@ -97,15 +140,20 @@ type ProjectileWeapon struct {
 	fireDelay           time.Duration
 	reloadDelay         time.Duration
 
-	barrelLength   float32
-	maxSpreadAngle float32
+	barrelLength   float64
+	maxSpreadAngle float64
 
 	state           WeaponState
 	stateChangeTime time.Time
 	sync.RWMutex
 }
 
-// Projectile represents a single projectile.
+// String returns the weapon's name as a string.
+func (p *ProjectileWeapon) String() string {
+	return string(p.weaponName)
+}
+
+// Projectile represents a single projectile. It contains time information to determine when it should be destroyed.
 type Projectile struct {
 	pos       pixel.Vec
 	velocity  pixel.Vec
@@ -113,6 +161,7 @@ type Projectile struct {
 	ttl       time.Duration
 }
 
+// Reload sets the currently active weapon's state to reloading assuming the weapon is in a reloadable state.
 func Reload() {
 	if ActiveWeapon == nil {
 		return
@@ -132,14 +181,18 @@ func Reload() {
 	ActiveWeapon.stateChangeTime = time.Now().UTC()
 }
 
+// Attack causes the weapon to be fireable assuming the weapon is in a state to be fired.
 func Attack() {
 	isWeaponTriggered = true
 }
 
+// StopAttack prevents a weapon from attacking.
 func StopAttack() {
 	isWeaponTriggered = false
 }
 
+// Shoot causes a projectile to be fired from a weapon. It determines the initial position and direction the projectile
+// should have, and alters the active weapon's state.
 func (p *Player) Shoot() {
 	if ActiveWeapon == nil {
 		return
@@ -153,14 +206,11 @@ func (p *Player) Shoot() {
 		return
 	}
 
-	bulletPos := pixel.V(
-		p.Pos().X+float64(ActiveWeapon.barrelLength)*math.Cos(p.Orientation()),
-		p.Pos().Y+float64(ActiveWeapon.barrelLength)*math.Sin(p.Orientation()),
-	)
+	projectileUnit := pixel.Unit(p.Orientation())
 
 	projectile := Projectile{
-		pos:       bulletPos,
-		velocity:  pixel.V(ProjectileSpeed*math.Cos(p.Orientation()), ProjectileSpeed*math.Sin(p.Orientation())),
+		pos:       p.Pos().Add(projectileUnit.Scaled(ActiveWeapon.barrelLength)),
+		velocity:  projectileUnit.Scaled(projectileSpeed),
 		spawnTime: time.Now().UTC(),
 		ttl:       time.Second * 5,
 	}
