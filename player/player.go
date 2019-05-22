@@ -26,10 +26,11 @@ type Player struct {
 }
 
 var (
-	AmmoStore    map[Ammo]int
-	Armoury      []*ProjectileWeapon
-	ActiveWeapon *ProjectileWeapon
-	Projectiles  []Projectile
+	AmmoStore       map[Ammo]int
+	Armoury         []*ProjectileWeapon
+	ActiveWeapon    *ProjectileWeapon
+	Projectiles     []Projectile
+	ProjectileSpeed = 15.0
 )
 
 func InitArmoury() {
@@ -49,7 +50,6 @@ func InitArmoury() {
 	if err := CollectWeapon(M4A1); err != nil {
 		fmt.Printf("failed to add new weapon: %s\n", err)
 	}
-
 }
 
 // Draw draws a player onto a window.

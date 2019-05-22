@@ -160,7 +160,7 @@ func (p *Player) Shoot() {
 
 	projectile := Projectile{
 		pos:       bulletPos,
-		velocity:  pixel.V(float64(ActiveWeapon.barrelLength)*math.Cos(p.Orientation()), float64(ActiveWeapon.barrelLength)*math.Sin(p.Orientation())),
+		velocity:  pixel.V(ProjectileSpeed*math.Cos(p.Orientation()), ProjectileSpeed*math.Sin(p.Orientation())),
 		spawnTime: time.Now().UTC(),
 		ttl:       time.Second * 5,
 	}
