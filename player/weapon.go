@@ -155,12 +155,33 @@ func (p *ProjectileWeapon) String() string {
 	return string(p.weaponName)
 }
 
+func NewProjectile(pos, vel pixel.Vec, spawnTime time.Time, ttl time.Duration) {
+	newProjectile := Projectile{
+		startPos: pos,
+		velocity: vel,
+		spawnTime: spawnTime,
+		ttl: ttl,
+	}
+	Projectiles = append(Projectiles, newProjectile)
+}
+
 // Projectile represents a single projectile. It contains time information to determine when it should be destroyed.
 type Projectile struct {
 	startPos, pos pixel.Vec
 	velocity      pixel.Vec
 	spawnTime     time.Time
 	ttl           time.Duration
+}
+
+func (p Projectile) Concat() string {
+	return fmt.Sprintf("%d|%f|%f|%s|%f|%f",
+		p.spawnTime.UnixNano(),
+		p.startPos.X,
+		p.startPos.Y,
+		p.ttl.String(),
+		p.velocity.X,
+		p.velocity.Y,
+	)
 }
 
 // Reload sets the currently active weapon's state to reloading assuming the weapon is in a reloadable state.
@@ -211,7 +232,7 @@ func (p *Player) Shoot() {
 	projectileUnit := pixel.Unit(p.Orientation())
 	startPos := p.Pos().Add(projectileUnit.Scaled(ActiveWeapon.barrelLength))
 	// determine offset to position bullet to the right on the tip of the weapon barrel
-	startPos = startPos.Add(pixel.Unit(p.Orientation() - 90).Scaled(19))
+	startPos = startPos.Add(pixel.Unit(p.Orientation() - 90).Scaled((p.sprite.Frame().H() * PlayerSpriteScale) / 4))
 
 	projectile := Projectile{
 		startPos:  startPos,
@@ -233,8 +254,8 @@ func (p *Player) Shoot() {
 	}
 
 	client.Send(server.Message{
-		"projectile",
-		"",
+		"create_projectile",
+		projectile.Concat(),
 	})
 }
 

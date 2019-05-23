@@ -9,6 +9,8 @@ import (
 	"github.com/faiface/pixel/pixelgl"
 )
 
+const PlayerSpriteScale = 0.3
+
 // Player represents a drawable client player.
 type Player struct {
 	name            string
@@ -27,7 +29,7 @@ type Player struct {
 // Draw draws a player onto a window.
 func (p *Player) Draw(win *pixelgl.Window) {
 	p.RLock()
-	p.sprite.Draw(win, pixel.IM.Moved(p.pos).Scaled(p.pos, 0.3).Rotated(p.pos, p.orientation))
+	p.sprite.Draw(win, pixel.IM.Moved(p.pos).Scaled(p.pos, PlayerSpriteScale).Rotated(p.pos, p.orientation))
 	p.RUnlock()
 }
 

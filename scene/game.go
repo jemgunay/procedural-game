@@ -18,10 +18,10 @@ import (
 
 // Game is the main interactive game functionality layer.
 type Game struct {
-	gameType    GameType
-	tileGrid    *world.TileGrid
-	players     *player.Store
-	mainPlayer  *player.Player
+	gameType   GameType
+	tileGrid   *world.TileGrid
+	players    *player.Store
+	mainPlayer *player.Player
 
 	camPos        pixel.Vec
 	camMatrix     pixel.Matrix
@@ -78,11 +78,11 @@ func NewGame(gameType GameType, addr string, playerName string) (game *Game, err
 				return nil, fmt.Errorf("failed to unpack register_success message: %s", err)
 			}
 
-			seed = data["seed"].(string)
-			name = data["name"].(string)
-			pos = data["pos"].(pixel.Vec)
-			rot = data["rot"].(float64)
-			health = data["health"].(uint64)
+			seed = data.GetString("seed")
+			name = data.GetString("name")
+			pos = data.Get("pos").(pixel.Vec)
+			rot = data.GetFloat("rot")
+			health = data.GetUInt("health")
 
 			fmt.Printf("new user with username: %s\n", name)
 
@@ -122,14 +122,14 @@ func NewGame(gameType GameType, addr string, playerName string) (game *Game, err
 
 	// create new game instance
 	game = &Game{
-		gameType:    gameType,
-		seed:        seed,
-		tileGrid:    tileGrid,
-		players:     playerStore,
-		mainPlayer:  mainPlayer,
-		camPos:      mainPlayer.Pos(),
-		camScale:    0.5,
-		exitCh:      make(chan struct{}, 1),
+		gameType:   gameType,
+		seed:       seed,
+		tileGrid:   tileGrid,
+		players:    playerStore,
+		mainPlayer: mainPlayer,
+		camPos:     mainPlayer.Pos(),
+		camScale:   0.5,
+		exitCh:     make(chan struct{}, 1),
 	}
 
 	// receive and process incoming requests from the server
@@ -168,17 +168,25 @@ func (g *Game) processServerUpdates() {
 			}
 
 			// find new player
-			p, err := g.players.Find(data["name"].(string))
+			p, err := g.players.Find(data.GetString("name"))
 			if err != nil {
 				fmt.Printf("player doesn't exist: %s\n", err)
 				break
 			}
-			p.SetPos(data["pos"].(pixel.Vec))
-			p.SetOrientation(data["rot"].(float64))
-			p.SetHealth(data["health"].(uint64))
+			p.SetPos(data.Get("pos").(pixel.Vec))
+			p.SetOrientation(data.GetFloat("rot"))
+			p.SetHealth(data.GetUInt("health"))
 
 		// player has fired a projectile
-		case "attack":
+		case "create_projectile":
+			data, err := msg.Unpack()
+			if err != nil {
+				fmt.Printf("create_projectile message incorrectly formatted: %s\n", err)
+			}
+
+			startPos := pixel.V(data.GetFloat("startX"), data.GetFloat("startY"))
+			vel := pixel.V(data.GetFloat("velX"), data.GetFloat("velY"))
+			player.NewProjectile(startPos, vel, data.GetTime("spawnTime"), data.GetDuration("ttl"))
 
 		// new player joined the game
 		case "user_joined":

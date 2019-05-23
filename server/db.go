@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net"
 	"sync"
+	"time"
 	"unicode"
 )
 
@@ -177,4 +178,47 @@ func (d *UserDB) Disconnect(user User) {
 		Type:  "disconnect",
 		Value: user.name,
 	}, user.name)
+}
+
+// Projectile represents a server projectile instance.
+type Projectile struct {
+	owner          string
+	x, y           float64
+	startX, startY float64
+	velX, velY     float64
+	spawnTime      time.Time
+	ttl            time.Duration
+}
+
+// ProjectileDB is a database of projectiles.
+type ProjectileDB struct {
+	projectiles []Projectile
+
+	sync.RWMutex
+}
+
+func (d *ProjectileDB) Create(projectile Projectile) {
+	d.Lock()
+	d.projectiles = append(d.projectiles, projectile)
+	d.Unlock()
+}
+
+func (d *ProjectileDB) Update(projectile Projectile) {
+	d.Lock()
+	var aliveProjectiles []Projectile
+	for _, p := range d.projectiles {
+		// only retain projectiles with unexpired TTLs
+		if !time.Now().UTC().After(p.spawnTime.Add(p.ttl)) {
+			timeAlive := float64(time.Now().UTC().Sub(p.spawnTime)/time.Millisecond) / 100
+			p.startX = p.x + p.velX*timeAlive
+			p.startY = p.y + p.velY*timeAlive
+			aliveProjectiles = append(aliveProjectiles, p)
+		}
+	}
+	d.projectiles = aliveProjectiles
+	d.Unlock()
+}
+
+func (d *ProjectileDB) CheckCollision(x, y, radius float64) {
+
 }

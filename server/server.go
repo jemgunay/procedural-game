@@ -15,8 +15,9 @@ var (
 	listener net.Listener
 	stopChan chan struct{}
 
-	userDB    UserDB
-	worldSeed string
+	userDB       UserDB
+	projectileDB ProjectileDB
+	worldSeed    string
 )
 
 // Start starts the TCP server and polls for incoming TCP connections.
@@ -132,6 +133,24 @@ func handleConn(conn net.Conn) {
 			user.vitals = msg.Value
 			userDB.Update(user)
 			msg.Value = user.name + "|" + msg.Value
+			userDB.Broadcast(msg, user.name)
+
+		case "create_projectile":
+			data, err := msg.Unpack()
+			if err != nil {
+				fmt.Printf("create_projectile message incorrectly formatted: %s\n", err)
+			}
+			newProjectile := Projectile{
+				owner: user.name,
+				spawnTime: data.GetTime("spawnTime"),
+				ttl: data.GetDuration("ttl"),
+				startX: data.GetFloat("startX"),
+				startY: data.GetFloat("startY"),
+				velX: data.GetFloat("velX"),
+				velY: data.GetFloat("velY"),
+			}
+
+			projectileDB.Create(newProjectile)
 			userDB.Broadcast(msg, user.name)
 
 		default:

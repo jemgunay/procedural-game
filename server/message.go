@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/faiface/pixel"
 )
@@ -25,9 +26,39 @@ func (m Message) Pack() []byte {
 	return buf.Bytes()
 }
 
+type UnpackedMessage map[string]interface{}
+
+func (m UnpackedMessage) Get(s string) interface{} {
+	return m[s]
+}
+
+func (m UnpackedMessage) GetString(s string) string {
+	return m[s].(string)
+}
+
+func (m UnpackedMessage) GetFloat(s string) float64 {
+	return m[s].(float64)
+}
+
+func (m UnpackedMessage) GetInt(s string) int64 {
+	return m[s].(int64)
+}
+
+func (m UnpackedMessage) GetUInt(s string) uint64 {
+	return m[s].(uint64)
+}
+
+func (m UnpackedMessage) GetTime(s string) time.Time {
+	return m[s].(time.Time)
+}
+
+func (m UnpackedMessage) GetDuration(s string) time.Duration {
+	return m[s].(time.Duration)
+}
+
 // Unpack produces a map of validated and processed data based on a message's type. The map's values must be type
 // asserted to extract the typed data.
-func (m Message) Unpack() (map[string]interface{}, error) {
+func (m Message) Unpack() (UnpackedMessage, error) {
 	components := strings.Split(m.Value, "|")
 
 	switch m.Type {
@@ -48,13 +79,52 @@ func (m Message) Unpack() (map[string]interface{}, error) {
 
 		unpacked["seed"] = components[0]
 		return unpacked, nil
+
+	case "create_projectile":
+		if len(components) != 6 {
+			return nil, errors.New("incorrect create_projectile component count")
+		}
+		spawnTime, err := strconv.ParseInt(components[0], 10, 64)
+		if err != nil {
+			return nil, errors.New("failed to parse health")
+		}
+		startX, err := strconv.ParseFloat(components[1], 64)
+		if err != nil {
+			return nil, errors.New("failed to parse startX")
+		}
+		startY, err := strconv.ParseFloat(components[2], 64)
+		if err != nil {
+			return nil, errors.New("failed to parse startY")
+		}
+		ttl, err := time.ParseDuration(components[3])
+		if err != nil {
+			return nil, errors.New("failed to parse ttl")
+		}
+		velX, err := strconv.ParseFloat(components[4], 64)
+		if err != nil {
+			return nil, errors.New("failed to parse velX")
+		}
+		velY, err := strconv.ParseFloat(components[5], 64)
+		if err != nil {
+			return nil, errors.New("failed to parse velY")
+		}
+
+		// unpacked response
+		return UnpackedMessage{
+			"spawnTime": time.Unix(0, spawnTime),
+			"startX":    startX,
+			"startY":    startY,
+			"ttl":       ttl,
+			"velX":      velX,
+			"velY":      velY,
+		}, nil
 	}
 
 	return nil, fmt.Errorf("unsupported message type supplied: %s", m.Type)
 }
 
 // UnpackVitals unpacks a message containing a player's vitals update.
-func UnpackVitals(components []string) (map[string]interface{}, error) {
+func UnpackVitals(components []string) (UnpackedMessage, error) {
 	if len(components) != 5 {
 		return nil, errors.New("incorrect vitals component count")
 	}
@@ -75,7 +145,7 @@ func UnpackVitals(components []string) (map[string]interface{}, error) {
 		return nil, errors.New("failed to parse health")
 	}
 	// unpacked response
-	return map[string]interface{}{
+	return UnpackedMessage{
 		"name":   components[0],
 		"pos":    pixel.V(x, y),
 		"rot":    rot,
