@@ -210,6 +210,8 @@ func (p *Player) Shoot() {
 
 	projectileUnit := pixel.Unit(p.Orientation())
 	startPos := p.Pos().Add(projectileUnit.Scaled(ActiveWeapon.barrelLength))
+	// determine offset to position bullet to the right on the tip of the weapon barrel
+	startPos = startPos.Add(pixel.Unit(p.Orientation() - 90).Scaled(19))
 
 	projectile := Projectile{
 		startPos:  startPos,
