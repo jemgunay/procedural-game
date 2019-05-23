@@ -27,6 +27,8 @@ Generated zip archive can be found in the `build` directory.
     - Bullet position & collisions processed server side?
     - Weapon & ammo types/ammo pick ups.
     - Player death & random position respawning.
+- Switch sprites depending on active weapon/walking & shooting animations.
+- Redesign message poller to serialise request processing - can then remove all Mutexes.
 - Slow player down in sand/water:
     - Only show head in water and prevent shooting.
 - Procedurally generated buildings.

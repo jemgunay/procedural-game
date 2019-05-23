@@ -8,16 +8,18 @@ import (
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/imdraw"
 	"github.com/faiface/pixel/pixelgl"
+	"github.com/jemgunay/procedural-game/client"
+	"github.com/jemgunay/procedural-game/server"
 	"github.com/pkg/errors"
 )
 
 var (
-	AmmoStore         map[Ammo]int
-	Armoury           []*ProjectileWeapon
-	ActiveWeapon      *ProjectileWeapon
-	Projectiles       []Projectile
+	AmmoStore    map[Ammo]int
+	Armoury      []*ProjectileWeapon
+	ActiveWeapon *ProjectileWeapon
+	Projectiles  []Projectile
 
-	projectileSpeed   = 20.0
+	projectileSpeed   = 100.0
 	isWeaponTriggered bool
 )
 
@@ -123,7 +125,7 @@ type WeaponState string
 
 const (
 	// Ready indicates that the weapon is ready to be fired or reloaded.
-	Ready     WeaponState = "ready"
+	Ready WeaponState = "ready"
 	// Attacking indicates that the weapon is attacking and cannot be reloaded.
 	Attacking WeaponState = "attacking"
 	// Reloading indicates that the weapon is reloading and cannot be fired.
@@ -155,10 +157,10 @@ func (p *ProjectileWeapon) String() string {
 
 // Projectile represents a single projectile. It contains time information to determine when it should be destroyed.
 type Projectile struct {
-	pos       pixel.Vec
-	velocity  pixel.Vec
-	spawnTime time.Time
-	ttl       time.Duration
+	startPos, pos pixel.Vec
+	velocity      pixel.Vec
+	spawnTime     time.Time
+	ttl           time.Duration
 }
 
 // Reload sets the currently active weapon's state to reloading assuming the weapon is in a reloadable state.
@@ -207,9 +209,11 @@ func (p *Player) Shoot() {
 	}
 
 	projectileUnit := pixel.Unit(p.Orientation())
+	startPos := p.Pos().Add(projectileUnit.Scaled(ActiveWeapon.barrelLength))
 
 	projectile := Projectile{
-		pos:       p.Pos().Add(projectileUnit.Scaled(ActiveWeapon.barrelLength)),
+		startPos:  startPos,
+		pos:       startPos,
 		velocity:  projectileUnit.Scaled(projectileSpeed),
 		spawnTime: time.Now().UTC(),
 		ttl:       time.Second * 5,
@@ -225,6 +229,11 @@ func (p *Player) Shoot() {
 	if !ActiveWeapon.automatic {
 		isWeaponTriggered = false
 	}
+
+	client.Send(server.Message{
+		"projectile",
+		"",
+	})
 }
 
 func (p *Player) Update(dt float64) {
@@ -264,7 +273,8 @@ func (p *Player) Update(dt float64) {
 	for _, p := range Projectiles {
 		// only retain projectiles with unexpired TTLs
 		if !time.Now().UTC().After(p.spawnTime.Add(p.ttl)) {
-			p.pos = p.pos.Add(p.velocity)
+			timeAlive := float64(time.Now().UTC().Sub(p.spawnTime)/time.Millisecond) / 100
+			p.pos = p.startPos.Add(p.velocity.Scaled(timeAlive))
 			aliveProjectiles = append(aliveProjectiles, p)
 		}
 	}
