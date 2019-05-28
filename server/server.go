@@ -92,6 +92,7 @@ func Update() {
 					user.health,
 				)
 				userDB.Unlock()
+				userDB.Update(user)
 				userDB.Broadcast(Message{
 					"vitals_server",
 					user.name + "|" + user.vitals,

@@ -157,10 +157,10 @@ func (p *ProjectileWeapon) String() string {
 
 func NewProjectile(pos, vel pixel.Vec, spawnTime time.Time, ttl time.Duration) {
 	newProjectile := Projectile{
-		startPos: pos,
-		velocity: vel,
+		startPos:  pos,
+		velocity:  vel,
 		spawnTime: spawnTime,
-		ttl: ttl,
+		ttl:       ttl,
 	}
 	Projectiles = append(Projectiles, newProjectile)
 }
@@ -254,8 +254,8 @@ func (p *Player) Shoot() {
 	}
 
 	client.Send(server.Message{
-		"create_projectile",
-		projectile.Concat(),
+		Type:  "create_projectile",
+		Value: projectile.Concat(),
 	})
 }
 

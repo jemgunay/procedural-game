@@ -97,14 +97,8 @@ func Poll() (server.Message, error) {
 
 // Send marshals and writes a message to a server.
 func Send(msg server.Message) {
-	rawMsg, err := json.Marshal(msg)
-	if err != nil {
-		fmt.Printf("failed to process outbound request: %s:\n%v\n", err, msg)
-		return
-	}
-
-	if _, err := conn.Write(append(rawMsg, '\n')); err != nil {
-		fmt.Printf("failed to write \"%s\" to %s: %s\n", string(rawMsg), conn.RemoteAddr(), err)
+	if _, err := conn.Write(msg.Pack()); err != nil {
+		fmt.Printf("failed to the following to %s: %s:\n%+v\n", conn.RemoteAddr(), err, msg)
 
 		// if too many write fails occur in a row, then disconnect from server
 		sendFailCounter++
