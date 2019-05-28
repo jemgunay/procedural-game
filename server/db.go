@@ -102,9 +102,9 @@ func (d *UserDB) Create(username string, conn net.Conn) (User, error) {
 	// validate username
 	switch {
 	case len(username) < MinUsernameLength:
-		return newUser, errors.New("username must have a minimum length of 5 characters")
+		return newUser, fmt.Errorf("username must have a minimum length of %d characters", MinUsernameLength)
 	case len(username) > MaxUsernameLength:
-		return newUser, errors.New("username length must not exceed 12 characters")
+		return newUser, fmt.Errorf("username length must not exceed %d characters", MaxUsernameLength)
 	}
 
 	// allow letters, numbers, underscore and hyphen
@@ -203,15 +203,15 @@ func (d *ProjectileDB) Create(projectile Projectile) {
 	d.Unlock()
 }
 
-func (d *ProjectileDB) Update(projectile Projectile) {
+func (d *ProjectileDB) Update() {
 	d.Lock()
 	var aliveProjectiles []Projectile
 	for _, p := range d.projectiles {
 		// only retain projectiles with unexpired TTLs
 		if !time.Now().UTC().After(p.spawnTime.Add(p.ttl)) {
 			timeAlive := float64(time.Now().UTC().Sub(p.spawnTime)/time.Millisecond) / 100
-			p.startX = p.x + p.velX*timeAlive
-			p.startY = p.y + p.velY*timeAlive
+			p.x = p.startX + p.velX*timeAlive
+			p.y = p.startY + p.velY*timeAlive
 			aliveProjectiles = append(aliveProjectiles, p)
 		}
 	}
@@ -219,6 +219,3 @@ func (d *ProjectileDB) Update(projectile Projectile) {
 	d.Unlock()
 }
 
-func (d *ProjectileDB) CheckCollision(x, y, radius float64) {
-
-}

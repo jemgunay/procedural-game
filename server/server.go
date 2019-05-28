@@ -9,6 +9,8 @@ import (
 	"net"
 	"strings"
 	"time"
+
+	"github.com/faiface/pixel"
 )
 
 var (
@@ -63,6 +65,45 @@ func Start(addr, seed string) error {
 	return nil
 }
 
+func Update() {
+	projectileDB.Update()
+	projectileDB.RLock()
+	userDB.Lock()
+	for _, projectile := range projectileDB.projectiles {
+		for _, user := range userDB.users {
+
+			if user.name == projectile.owner {
+				continue
+			}
+
+			deltaX := projectile.x - user.x
+			deltaY := projectile.y - user.y
+			playerRadius := 50.0
+
+			if (deltaX*deltaX)+(deltaY*deltaY) < playerRadius*playerRadius {
+				fmt.Printf("player %s hit by %s's projectile!\n", user.name, projectile.owner)
+
+				user.x = float64(userDB.rand.Intn(8000))
+				user.y = float64(userDB.rand.Intn(8000))
+				user.vitals = ConcatVitals(
+					user.x,
+					user.y,
+					user.rot,
+					user.health,
+				)
+				userDB.Unlock()
+				userDB.Broadcast(Message{
+					"vitals_server",
+					user.name + "|" + user.vitals,
+				})
+				userDB.Lock()
+			}
+		}
+	}
+	userDB.Unlock()
+	projectileDB.RUnlock()
+}
+
 // Shutdown gracefully shuts down the TCP server.
 func Shutdown() {
 	fmt.Println("TCP server shutting down")
@@ -72,7 +113,6 @@ func Shutdown() {
 	time.Sleep(time.Millisecond * 500)
 	stopChan <- struct{}{}
 	listener.Close()
-	// TODO: wg.Wait()
 }
 
 // handles the processing and maintenance of a connection between the server and a single game client.
@@ -128,10 +168,22 @@ func handleConn(conn net.Conn) {
 			// destroy reference to local user
 			user = User{}
 
-		case "vitals":
+		case "vitals_client":
 			// write pos msg right back to other clients
+			data, err := msg.Unpack()
+			if err != nil {
+				fmt.Printf("failed to split vitals request: %s\n", err)
+				break
+			}
+
+			user.x = (data.Get("pos").(pixel.Vec)).X
+			user.y = (data.Get("pos").(pixel.Vec)).Y
+			user.rot = data.GetFloat("rot")
+			user.health = data.GetUInt("health")
 			user.vitals = msg.Value
 			userDB.Update(user)
+
+			msg.Type = "vitals_server"
 			msg.Value = user.name + "|" + msg.Value
 			userDB.Broadcast(msg, user.name)
 
@@ -141,13 +193,13 @@ func handleConn(conn net.Conn) {
 				fmt.Printf("create_projectile message incorrectly formatted: %s\n", err)
 			}
 			newProjectile := Projectile{
-				owner: user.name,
+				owner:     user.name,
 				spawnTime: data.GetTime("spawnTime"),
-				ttl: data.GetDuration("ttl"),
-				startX: data.GetFloat("startX"),
-				startY: data.GetFloat("startY"),
-				velX: data.GetFloat("velX"),
-				velY: data.GetFloat("velY"),
+				ttl:       data.GetDuration("ttl"),
+				startX:    data.GetFloat("startX"),
+				startY:    data.GetFloat("startY"),
+				velX:      data.GetFloat("velX"),
+				velY:      data.GetFloat("velY"),
 			}
 
 			projectileDB.Create(newProjectile)

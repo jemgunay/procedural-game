@@ -62,9 +62,27 @@ func (m Message) Unpack() (UnpackedMessage, error) {
 	components := strings.Split(m.Value, "|")
 
 	switch m.Type {
-	case "vitals":
+	case "vitals_client":
+		if len(components) != 4 {
+			return nil, errors.New("incorrect vitals_server component count")
+		}
+
 		// validation
-		return UnpackVitals(components)
+		return unpackVitals(components)
+
+	case "vitals_server":
+		if len(components) != 5 {
+			return nil, errors.New("incorrect vitals_client component count")
+		}
+
+		// validation
+		unpacked, err := unpackVitals(components[1:])
+		if err != nil {
+			return nil, err
+		}
+
+		unpacked["name"] = components[0]
+		return unpacked, nil
 
 	case "register_success", "connect_success":
 		// validation
@@ -72,12 +90,13 @@ func (m Message) Unpack() (UnpackedMessage, error) {
 			return nil, errors.New("incorrect register_success component count")
 		}
 
-		unpacked, err := UnpackVitals(components[1:])
+		unpacked, err := unpackVitals(components[2:])
 		if err != nil {
 			return unpacked, err
 		}
 
 		unpacked["seed"] = components[0]
+		unpacked["name"] = components[1]
 		return unpacked, nil
 
 	case "create_projectile":
@@ -123,30 +142,26 @@ func (m Message) Unpack() (UnpackedMessage, error) {
 	return nil, fmt.Errorf("unsupported message type supplied: %s", m.Type)
 }
 
-// UnpackVitals unpacks a message containing a player's vitals update.
-func UnpackVitals(components []string) (UnpackedMessage, error) {
-	if len(components) != 5 {
-		return nil, errors.New("incorrect vitals component count")
-	}
-	x, err := strconv.ParseFloat(components[1], 64)
+// unpackVitals unpacks a message containing a player's vitals update
+func unpackVitals(components []string) (UnpackedMessage, error) {
+	x, err := strconv.ParseFloat(components[0], 64)
 	if err != nil {
 		return nil, errors.New("failed to parse X")
 	}
-	y, err := strconv.ParseFloat(components[2], 64)
+	y, err := strconv.ParseFloat(components[1], 64)
 	if err != nil {
 		return nil, errors.New("failed to parse Y")
 	}
-	rot, err := strconv.ParseFloat(components[3], 64)
+	rot, err := strconv.ParseFloat(components[2], 64)
 	if err != nil {
 		return nil, errors.New("failed to parse rot")
 	}
-	health, err := strconv.ParseUint(components[4], 10, 64)
+	health, err := strconv.ParseUint(components[3], 10, 64)
 	if err != nil {
 		return nil, errors.New("failed to parse health")
 	}
 	// unpacked response
 	return UnpackedMessage{
-		"name":   components[0],
 		"pos":    pixel.V(x, y),
 		"rot":    rot,
 		"health": health,

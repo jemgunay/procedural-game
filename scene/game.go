@@ -160,14 +160,14 @@ func (g *Game) processServerUpdates() {
 
 		switch msg.Type {
 		// update a player's position and orientation
-		case "vitals":
+		case "vitals_server":
 			data, err := msg.Unpack()
 			if err != nil {
-				fmt.Printf("failed to split vitals request: %s", err)
+				fmt.Printf("failed to split vitals request: %s\n", err)
 				break
 			}
 
-			// find new player
+			// find player
 			p, err := g.players.Find(data.GetString("name"))
 			if err != nil {
 				fmt.Printf("player doesn't exist: %s\n", err)
@@ -266,6 +266,9 @@ func splitPosReq(val string) (name string, pos pixel.Vec, rot float64, health ui
 
 // Update updates the game layer logic.
 func (g *Game) Update(dt float64) {
+	if g.gameType == Server {
+		server.Update()
+	}
 	g.mainPlayer.Update(dt)
 
 	// things that shouldn't update when the overview menu is up should occur here
@@ -348,7 +351,7 @@ func (g *Game) Update(dt float64) {
 	if g.mainPlayer.HasMoved() {
 		pos := g.mainPlayer.Pos()
 		client.Send(server.Message{
-			Type:  "vitals",
+			Type:  "vitals_client",
 			Value: server.ConcatVitals(pos.X, pos.Y, g.mainPlayer.Orientation(), g.mainPlayer.Health()),
 		})
 	}
