@@ -452,7 +452,7 @@ func (t *TextBox) Draw(win *pixelgl.Window, bounds pixel.Rect) {
 // updates the cursor character and resets the flash interval
 func (t *TextBox) setCursorState(character string) {
 	t.cursorChar = character
-	t.cursorLastTick = time.Now()
+	t.cursorLastTick = time.Now().UTC()
 }
 
 // Text returns the text box input value.

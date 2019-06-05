@@ -214,7 +214,7 @@ type OverlayMenu struct {
 }
 
 // NewOverlayMenu creates and initialises a new overlay menu layer.
-func NewOverlayMenu() *OverlayMenu {
+func NewOverlayMenu(gameType GameType) *OverlayMenu {
 	// create container sized half the window height
 	container := ui.NewFixedContainer(ui.NewPadding(5), func() pixel.Rect {
 		b := win.Bounds()
@@ -224,10 +224,15 @@ func NewOverlayMenu() *OverlayMenu {
 		return b.Resized(b.Center(), pixel.V(b.Size().X, b.Size().Y*0.5))
 	})
 
+	disconnectBtnText := "Disconnect"
+	if gameType == Server {
+		disconnectBtnText = "Close Server"
+	}
+
 	menu := &OverlayMenu{
 		uiContainer:   container,
 		resumeBtn:     ui.NewButton("Resume", ui.Blue, colornames.White),
-		disconnectBtn: ui.NewButton("Disconnect", ui.Green, colornames.White),
+		disconnectBtn: ui.NewButton(disconnectBtnText, ui.Green, colornames.White),
 		quitBtn:       ui.NewButton("Quit Game", ui.Red, colornames.White),
 	}
 	container.AddElement(menu.resumeBtn, menu.disconnectBtn, menu.quitBtn)

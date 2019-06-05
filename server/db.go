@@ -1,12 +1,12 @@
 package server
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
 	"net"
 	"sync"
+	"time"
 	"unicode"
 )
 
@@ -19,11 +19,15 @@ const (
 
 // User represents a persistent user record.
 type User struct {
-	conn      net.Conn
-	name      string
-	blocked   bool
-	posRotStr string
-	exitCh    chan struct{}
+	name string
+	// vitals is a stringified composition of the core player data such as position, health, etc
+	vitals string
+	x, y   float64
+	rot    float64
+	health uint64
+
+	conn   net.Conn
+	exitCh chan struct{}
 }
 
 // Send marshals and writes a message to a user's client.
@@ -32,13 +36,8 @@ func (u *User) Send(msg Message) {
 		return
 	}
 
-	rawMsg, err := json.Marshal(msg)
-	if err != nil {
-		fmt.Printf("failed to process outbound request: %s:\n%v\n", err, msg)
-		return
-	}
-
-	if _, err := u.conn.Write(append(rawMsg, '\n')); err != nil {
+	rawMsg := msg.Pack()
+	if _, err := u.conn.Write(rawMsg); err != nil {
 		fmt.Printf("failed to write \"%s\" to %s: %s\n", string(rawMsg), u.conn.RemoteAddr(), err)
 	}
 }
@@ -92,6 +91,10 @@ func (d *UserDB) Create(username string, conn net.Conn) (User, error) {
 	// create new user at the top of this func so that the conn can be consumed on error
 	newUser := User{
 		name:   username,
+		x:      float64(d.rand.Intn(8000)),
+		y:      float64(d.rand.Intn(8000)),
+		rot:    0.0,
+		health: 100,
 		conn:   conn,
 		exitCh: make(chan struct{}, 1),
 	}
@@ -99,9 +102,9 @@ func (d *UserDB) Create(username string, conn net.Conn) (User, error) {
 	// validate username
 	switch {
 	case len(username) < MinUsernameLength:
-		return newUser, errors.New("username must have a minimum length of 5 characters")
+		return newUser, fmt.Errorf("username must have a minimum length of %d characters", MinUsernameLength)
 	case len(username) > MaxUsernameLength:
-		return newUser, errors.New("username length must not exceed 12 characters")
+		return newUser, fmt.Errorf("username length must not exceed %d characters", MaxUsernameLength)
 	}
 
 	// allow letters, numbers, underscore and hyphen
@@ -125,7 +128,12 @@ func (d *UserDB) Create(username string, conn net.Conn) (User, error) {
 	}
 
 	// set initial random position
-	newUser.posRotStr = fmt.Sprintf("%f|%f|%f", float64(d.rand.Intn(8000)), float64(d.rand.Intn(8000)), 0.0)
+	newUser.vitals = ConcatVitals(
+		newUser.x,
+		newUser.y,
+		newUser.rot,
+		newUser.health,
+	)
 
 	// insert new user into DB
 	d.Lock()
@@ -171,3 +179,43 @@ func (d *UserDB) Disconnect(user User) {
 		Value: user.name,
 	}, user.name)
 }
+
+// Projectile represents a server projectile instance.
+type Projectile struct {
+	owner          string
+	x, y           float64
+	startX, startY float64
+	velX, velY     float64
+	spawnTime      time.Time
+	ttl            time.Duration
+}
+
+// ProjectileDB is a database of projectiles.
+type ProjectileDB struct {
+	projectiles []Projectile
+
+	sync.RWMutex
+}
+
+func (d *ProjectileDB) Create(projectile Projectile) {
+	d.Lock()
+	d.projectiles = append(d.projectiles, projectile)
+	d.Unlock()
+}
+
+func (d *ProjectileDB) Update() {
+	d.Lock()
+	var aliveProjectiles []Projectile
+	for _, p := range d.projectiles {
+		// only retain projectiles with unexpired TTLs
+		if !time.Now().UTC().After(p.spawnTime.Add(p.ttl)) {
+			timeAlive := float64(time.Now().UTC().Sub(p.spawnTime)/time.Millisecond) / 100
+			p.x = p.startX + p.velX*timeAlive
+			p.y = p.startY + p.velY*timeAlive
+			aliveProjectiles = append(aliveProjectiles, p)
+		}
+	}
+	d.projectiles = aliveProjectiles
+	d.Unlock()
+}
+

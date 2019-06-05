@@ -1,3 +1,4 @@
+// Package client handles retrieving and sending messages from and to a game server instance.
 package client
 
 import (
@@ -10,19 +11,24 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	maxSendFails           = uint(10)
+	messageQueueBufferSize = 2048
+)
+
 var (
 	conn         net.Conn
-	stopChan     chan struct{}
 	messageQueue chan server.Message
+	connected    bool
 
-	maxSendFails    = uint(10)
 	sendFailCounter uint
+	stopChan        chan struct{}
 )
 
 // Start initialises a connection with a TCP game server.
 func Start(addr string) error {
 	stopChan = make(chan struct{}, 1)
-	messageQueue = make(chan server.Message, 1024)
+	messageQueue = make(chan server.Message, messageQueueBufferSize)
 	sendFailCounter = 0
 
 	var err error
@@ -31,6 +37,7 @@ func Start(addr string) error {
 		return fmt.Errorf("failed to bind TCP on port %s: %s", addr, err)
 	}
 
+	connected = true
 	fmt.Println("TCP server connection established on " + addr)
 
 	go func() {
@@ -48,7 +55,8 @@ func Start(addr string) error {
 				resp, err := r.ReadString('\n')
 				if err != nil {
 					fmt.Printf("failed to read incoming TCP request: %s\n", err)
-					break
+					Disconnect()
+					continue
 				}
 
 				// unmarshal raw request
@@ -89,14 +97,8 @@ func Poll() (server.Message, error) {
 
 // Send marshals and writes a message to a server.
 func Send(msg server.Message) {
-	rawMsg, err := json.Marshal(msg)
-	if err != nil {
-		fmt.Printf("failed to process outbound request: %s:\n%v\n", err, msg)
-		return
-	}
-
-	if _, err := conn.Write(append(rawMsg, '\n')); err != nil {
-		fmt.Printf("failed to write \"%s\" to %s: %s\n", string(rawMsg), conn.RemoteAddr(), err)
+	if _, err := conn.Write(msg.Pack()); err != nil {
+		fmt.Printf("failed to the following to %s: %s:\n%+v\n", conn.RemoteAddr(), err, msg)
 
 		// if too many write fails occur in a row, then disconnect from server
 		sendFailCounter++
@@ -111,6 +113,9 @@ func Send(msg server.Message) {
 
 // Disconnect disconnects the client from the server.
 func Disconnect() {
+	if !connected {
+		return
+	}
 	fmt.Println("disconnecting client")
 	stopChan <- struct{}{}
 }

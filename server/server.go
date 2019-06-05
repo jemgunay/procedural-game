@@ -9,14 +9,17 @@ import (
 	"net"
 	"strings"
 	"time"
+
+	"github.com/faiface/pixel"
 )
 
 var (
 	listener net.Listener
 	stopChan chan struct{}
 
-	userDB    UserDB
-	worldSeed string
+	userDB       UserDB
+	projectileDB ProjectileDB
+	worldSeed    string
 )
 
 // Start starts the TCP server and polls for incoming TCP connections.
@@ -25,7 +28,7 @@ func Start(addr, seed string) error {
 	stopChan = make(chan struct{}, 1)
 	userDB = UserDB{
 		users: make(map[string]User),
-		rand:  rand.New(rand.NewSource(int64(time.Now().Nanosecond()))),
+		rand:  rand.New(rand.NewSource(int64(time.Now().UTC().Nanosecond()))),
 	}
 
 	// bind TCP listener
@@ -48,9 +51,6 @@ func Start(addr, seed string) error {
 				select {
 				case <-stopChan:
 					// shutdown server
-					// TODO: broadcast shutdown to all users
-					// TODO: add waitgroup to complete all connections before killing server so that shutdown messages can be sent to all clients
-					fmt.Println("TCP server shut down")
 					return
 
 				default:
@@ -60,22 +60,60 @@ func Start(addr, seed string) error {
 			// handle connection
 			go handleConn(conn)
 		}
-
 	}()
 
 	return nil
 }
 
+func Update() {
+	projectileDB.Update()
+	projectileDB.RLock()
+	userDB.Lock()
+	for _, projectile := range projectileDB.projectiles {
+		for _, user := range userDB.users {
+
+			if user.name == projectile.owner {
+				continue
+			}
+
+			deltaX := projectile.x - user.x
+			deltaY := projectile.y - user.y
+			playerRadius := 50.0
+
+			if (deltaX*deltaX)+(deltaY*deltaY) < playerRadius*playerRadius {
+				fmt.Printf("player %s hit by %s's projectile!\n", user.name, projectile.owner)
+
+				user.x = float64(userDB.rand.Intn(8000))
+				user.y = float64(userDB.rand.Intn(8000))
+				user.vitals = ConcatVitals(
+					user.x,
+					user.y,
+					user.rot,
+					user.health,
+				)
+				userDB.Unlock()
+				userDB.Update(user)
+				userDB.Broadcast(Message{
+					"vitals_server",
+					user.name + "|" + user.vitals,
+				})
+				userDB.Lock()
+			}
+		}
+	}
+	userDB.Unlock()
+	projectileDB.RUnlock()
+}
+
 // Shutdown gracefully shuts down the TCP server.
 func Shutdown() {
-	fmt.Println("server shutting down")
+	fmt.Println("TCP server shutting down")
 	userDB.Broadcast(Message{
-		Type:  "server_shutdown",
+		Type: "server_shutdown",
 	})
 	time.Sleep(time.Millisecond * 500)
 	stopChan <- struct{}{}
 	listener.Close()
-	// TODO: wg.Wait()
 }
 
 // handles the processing and maintenance of a connection between the server and a single game client.
@@ -87,6 +125,16 @@ func handleConn(conn net.Conn) {
 	fmt.Println("TCP client connection established on " + addr)
 
 	var user User
+	defer func() {
+		// clean up on messy connection closure
+		if user.conn != nil {
+			userDB.Disconnect(user)
+		}
+
+		// client disconnecting
+		fmt.Println("TCP client connection disconnected on " + addr)
+	}()
+
 	for {
 		select {
 		case <-user.exitCh:
@@ -97,7 +145,7 @@ func handleConn(conn net.Conn) {
 		resp, err := bufio.NewReader(conn).ReadString('\n')
 		if err != nil {
 			fmt.Printf("failed to read incoming TCP request: %s\n", err)
-			break
+			return
 		}
 
 		// unmarshal raw request
@@ -121,25 +169,47 @@ func handleConn(conn net.Conn) {
 			// destroy reference to local user
 			user = User{}
 
-		case "pos":
+		case "vitals_client":
 			// write pos msg right back to other clients
-			user.posRotStr = msg.Value
+			data, err := msg.Unpack()
+			if err != nil {
+				fmt.Printf("failed to split vitals request: %s\n", err)
+				break
+			}
+
+			user.x = (data.Get("pos").(pixel.Vec)).X
+			user.y = (data.Get("pos").(pixel.Vec)).Y
+			user.rot = data.GetFloat("rot")
+			user.health = data.GetUInt("health")
+			user.vitals = msg.Value
 			userDB.Update(user)
+
+			msg.Type = "vitals_server"
 			msg.Value = user.name + "|" + msg.Value
+			userDB.Broadcast(msg, user.name)
+
+		case "create_projectile":
+			data, err := msg.Unpack()
+			if err != nil {
+				fmt.Printf("create_projectile message incorrectly formatted: %s\n", err)
+			}
+			newProjectile := Projectile{
+				owner:     user.name,
+				spawnTime: data.GetTime("spawnTime"),
+				ttl:       data.GetDuration("ttl"),
+				startX:    data.GetFloat("startX"),
+				startY:    data.GetFloat("startY"),
+				velX:      data.GetFloat("velX"),
+				velY:      data.GetFloat("velY"),
+			}
+
+			projectileDB.Create(newProjectile)
 			userDB.Broadcast(msg, user.name)
 
 		default:
 			fmt.Printf("unsupported request type for connected stage: %s\n", msg.Type)
 		}
 	}
-
-	// clean up on messy connection closure
-	if user.conn != nil {
-		userDB.Disconnect(user)
-	}
-
-	// client disconnecting
-	fmt.Println("TCP client connection disconnected on " + addr)
 }
 
 // handles registering (signing up) and reconnecting (logging in) users on an established connection, associating the
@@ -168,7 +238,7 @@ func establishUser(msg Message, conn net.Conn) (user User) {
 		// respond with register success
 		user.Send(Message{
 			Type:  "register_success",
-			Value: user.name + "|" + worldSeed + "|" + user.posRotStr,
+			Value: worldSeed + "|" + user.name + "|" + user.vitals,
 		})
 	} else {
 		// attempt to establish connection for existing user
@@ -184,7 +254,7 @@ func establishUser(msg Message, conn net.Conn) (user User) {
 		// respond with connect success
 		user.Send(Message{
 			Type:  "connect_success",
-			Value: user.name + "|" + worldSeed + "|" + user.posRotStr,
+			Value: worldSeed + "|" + user.name + "|" + user.vitals,
 		})
 	}
 
@@ -203,7 +273,7 @@ func establishUser(msg Message, conn net.Conn) (user User) {
 		if data.String() != "" {
 			data.WriteString("/")
 		}
-		data.WriteString(u.name + "|" + u.posRotStr)
+		data.WriteString(u.name + "|" + u.vitals)
 	}
 	if data.String() != "" {
 		user.Send(Message{

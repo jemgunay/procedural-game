@@ -2,7 +2,7 @@
 
 A cheeky 2D multiplayer procedural terrain game demo made using the pixel game engine.
 
-WASD to move character, RF to zoom in/out.
+WASD to move character, Up/Down to zoom in/out.
 
 ## Build & Run
 
@@ -23,11 +23,17 @@ Generated zip archive can be found in the `build` directory.
 
 ## TODO
 
-- Weapons/projectiles (and ability for players to die).
-- UI for stopping server/disconnecting from server.
-- Procedurally generated houses with accessible interiors.
-- Continuous world tile generation upon exploring unseen territory.
+- Weapons:
+    - Bullet position & collisions processed server side?
+    - Weapon & ammo types/ammo pick ups.
+    - Player death & random position respawning.
+- Switch sprites depending on active weapon/walking & shooting animations.
+- Redesign message poller to serialise request processing - can then remove all Mutexes.
+- Slow player down in sand/water:
+    - Only show head in water and prevent shooting.
+- Procedurally generated buildings.
+    - Accessible interiors?
 - Cars - using A* to navigate between road nodes.
 - Store/read server state to/from disk to allow restarts.
 - FPS counter enable/disable.
-- Only show head in water.
+- Continuous world tile generation upon exploring unseen territory.
