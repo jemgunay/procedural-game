@@ -82,22 +82,22 @@ const (
 	RoadEW   ImageFile = "road_ew.png"
 )
 
-var imageFiles = map[ImageFile]bool{
-	Player:   true,
-	Grass:    true,
-	Sand:     true,
-	Water:    true,
-	RoadNESW: true,
-	RoadNES:  true,
-	RoadESW:  true,
-	RoadNSW:  true,
-	RoadNEW:  true,
-	RoadNE:   true,
-	RoadES:   true,
-	RoadSW:   true,
-	RoadNW:   true,
-	RoadNS:   true,
-	RoadEW:   true,
+var imageFiles = map[ImageFile]struct{}{
+	Player:   {},
+	Grass:    {},
+	Sand:     {},
+	Water:    {},
+	RoadNESW: {},
+	RoadNES:  {},
+	RoadESW:  {},
+	RoadNSW:  {},
+	RoadNEW:  {},
+	RoadNE:   {},
+	RoadES:   {},
+	RoadSW:   {},
+	RoadNW:   {},
+	RoadNS:   {},
+	RoadEW:   {},
 }
 
 // DefaultFragShader represents the standard shader with no effects applied.
